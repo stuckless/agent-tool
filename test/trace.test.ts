@@ -73,4 +73,14 @@ describe("TraceRecorder", () => {
 
     expect(tracer.toJson().steps[0]).toMatchObject({ result: { value: "[REDACTED]" } });
   });
+
+  it("records progressive skill catalog and load events in JSON and human traces", () => {
+    const tracer = new TraceRecorder({ model: "fake-model", reasoning: { mode: "provider-default" }, modelOptions: {}, promptPath: "prompt.md", promptContent: "Use tools.", skills: [skill], tools: [{ name: "runtime.load_skill", description: "Load a skill.", inputSchema: { type: "object" }, runtime: { kind: "load-skill" }, async execute() { return {}; } }], showThinking: false, now: () => 0 });
+    tracer.trace({ type: "skill.catalog", skills: [{ name: "work-orders", description: "Use work-order tools." }] });
+    tracer.trace({ type: "skill.load", step: 1, name: "work-orders", ok: true, alreadyLoaded: false });
+
+    expect(tracer.toJson()).toMatchObject({ tools: [{ name: "runtime.load_skill", source: "runtime" }], steps: [{ type: "skill.catalog" }, { type: "skill.load", name: "work-orders", ok: true }] });
+    expect(tracer.toHuman()).toContain("Skill catalog");
+    expect(tracer.toHuman()).toContain("skill → loaded: work-orders");
+  });
 });

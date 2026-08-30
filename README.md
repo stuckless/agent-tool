@@ -1,6 +1,6 @@
 # agent-tool
 
-A small, transparent agent runtime for Node.js. Phase 6 adds deterministic, objective eval runs to the compact tool-calling loop.
+A small, transparent agent runtime for Node.js. Phase 7 adds opt-in progressive skill disclosure to the compact tool-calling loop.
 
 ## Requirements
 
@@ -81,7 +81,7 @@ tags:
 Use authoritative tools for current work-order data.
 ```
 
-By default, `skills.mode` is `all`; use `none` to load no skills. Select specific skills with repeatable `--skill` options:
+By default, `skills.mode` is `all`, which eagerly places every selected skill body in the system context; use `none` to load no skills. Select specific skills with repeatable `--skill` options:
 
 ```bash
 AGENT_MODEL="your-local-model" npm run dev -- --skills none "Explain a work order"
@@ -89,6 +89,12 @@ AGENT_MODEL="your-local-model" npm run dev -- --skill work-orders "Explain a wor
 ```
 
 An explicit `--skill` selection overrides the configured mode. `--skills all` is mutually exclusive with `--skill`; `--skills none --skill work-orders` is allowed and loads only `work-orders`.
+
+Set `skills.mode` to `progressive` (or use `--skills progressive`) to send a compact catalog of the selected skills—name and description only—rather than their Markdown bodies. In this mode the registry also contains the runtime-owned `runtime.load_skill` tool. It accepts an exact catalog name and returns that selected skill's full Markdown instructions. The returned tool result stays in the ordered conversation for the rest of the run. Repeated loads return an `alreadyLoaded` result without repeating the Markdown; unknown and unselected names return safe normalized errors the model can recover from. Skills remain instruction content, not executable capabilities.
+
+```bash
+AGENT_MODEL="your-local-model" npm run dev -- --skills progressive --skill work-orders "Explain a work order"
+```
 
 Reasoning is configured separately from generic model options. Use `--reasoning default|off|on|low|medium|high|max` for a one-run override. The Ollama adapter maps these values to its `think` request field. Provider-exposed thinking is preserved as opaque model state but is not shown in normal output and never controls runtime behavior.
 
@@ -100,7 +106,7 @@ Use `--trace` to write a concise, human-readable run trace to stderr. The final 
 AGENT_MODEL="your-local-model" npm run dev -- --trace "Explain a work order"
 ```
 
-The trace records the configured model and reasoning configuration, system-prompt path and content hash, selected skills, available local/MCP tools, ordered model and tool events, result payloads, and completion. Reasoning configuration is trace metadata; it is not added to the system prompt.
+The trace records the configured model and reasoning configuration, system-prompt path and content hash, selected skills, available local/MCP/runtime tools, ordered model and tool events, result payloads, and completion. Progressive runs additionally record the compact skill catalog and each skill-load outcome. Reasoning configuration is trace metadata; it is not added to the system prompt.
 
 Use `--trace-json` instead for one structured JSON document on stderr, suitable for later analysis:
 
@@ -166,4 +172,4 @@ AGENT_MODEL="your-local-model" npm run dev:eval -- examples/demo-evals.json --ou
 
 Each case requires `id`, `prompt`, and an `expect` object with `requiredTools`, `forbiddenTools`, `maxToolCalls`, and `outputIncludes`. A run passes only when it completes, matches every tool/output assertion, stays under the call limit, and has no tool errors. The report records a SHA-256 prompt identity, selected skills, available tools, model turns and tool-call events, final completion/error status, and the configured model/reasoning metadata. It never uses provider-exposed thinking text to make eval decisions.
 
-The included [demo-evals.json](examples/demo-evals.json) is a format example; it needs a model that reliably includes `work order` and is not a deterministic model acceptance test. Deterministic normal tests use only fake models and local tools. No live Ollama eval, real MCP eval, or manual check that a skill changes live model behavior has been performed; those remain optional follow-up checks after Phase 6.
+The included [demo-evals.json](examples/demo-evals.json) is a format example; it needs a model that reliably includes `work order` and is not a deterministic model acceptance test. Deterministic normal tests use only fake models and local tools, including a Phase 7 eval that requires `runtime.load_skill`. No live Ollama eval, real MCP eval, or manual check that a skill changes live model behavior has been performed; those remain optional follow-up checks after Phase 7.

@@ -15,6 +15,7 @@ import { createTestTools } from "./tools/test-tools.js";
 import { McpManager } from "./mcp/manager.js";
 import { buildSystemPrompt } from "./skills/context.js";
 import { loadSkills, selectSkills } from "./skills/loader.js";
+import { createLoadSkillTool } from "./skills/runtime.js";
 import { TraceRecorder } from "./trace/trace.js";
 
 export async function runCli(argv = hideBin(process.argv)): Promise<void> {
@@ -25,7 +26,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     .option("model", { type: "string", description: "Override the configured Ollama model." })
     .option("prompt", { type: "string", description: "Override the configured system prompt path." })
     .option("skill", { type: "string", array: true, nargs: 1, description: "Load one named skill; repeatable." })
-    .option("skills", { choices: ["all", "none"] as const, description: "Load all skills or no skills." })
+    .option("skills", { choices: ["all", "none", "progressive"] as const, description: "Load all, no, or progressively disclosed skills." })
     .option("reasoning", {
       choices: ["default", "off", "on", "low", "medium", "high", "max"] as const,
       description: "Override reasoning mode or effort.",
@@ -55,12 +56,14 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const basePrompt = await loadSystemPrompt(arguments_.prompt ? resolve(arguments_.prompt) : config.agent.systemPrompt);
   const availableSkills = await loadSkills(config.skills.directories);
   const selectedSkills = selectSkills(availableSkills, arguments_.skills ?? config.skills.mode, requestedSkillNames);
-  const systemPrompt = buildSystemPrompt(basePrompt, selectedSkills);
+  const progressiveSkills = (arguments_.skills ?? config.skills.mode) === "progressive";
+  const systemPrompt = buildSystemPrompt(basePrompt, selectedSkills, progressiveSkills ? "progressive" : "eager");
   const model = new OllamaProvider({
     baseUrl: config.model.baseUrl,
     model: config.model.name,
   });
   const tools = new ToolRegistry(createTestTools());
+  if (progressiveSkills) tools.register(createLoadSkillTool(selectedSkills, availableSkills));
   const mcp = new McpManager(config.mcpServers, undefined, config.tools);
   const traceEnabled = arguments_.trace || arguments_["trace-json"];
   let tracer: TraceRecorder | undefined;
@@ -87,6 +90,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
       modelOptions: config.model.options,
       maxSteps: arguments_.maxSteps ?? config.agent.maxSteps,
       tracer,
+      ...(progressiveSkills ? { skillCatalog: selectedSkills } : {}),
     });
     const result = await agent.run(prompt);
     if (tracer) {

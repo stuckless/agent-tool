@@ -1,5 +1,7 @@
 import type { ConversationMessage, ModelProvider, ModelToolCall, ReasoningConfig, ToolResultMessage } from "../model/types.js";
 import { ToolRegistry } from "../tools/registry.js";
+import { ToolExecutionError } from "../tools/types.js";
+import type { Skill } from "../skills/loader.js";
 import type { AgentTracer, AgentRunResult } from "./types.js";
 import { StepLimitExceededError } from "./types.js";
 
@@ -11,6 +13,7 @@ export interface AgentOptions {
   modelOptions: Record<string, unknown>;
   maxSteps?: number;
   tracer?: AgentTracer;
+  skillCatalog?: Skill[];
 }
 
 export class Agent {
@@ -28,6 +31,9 @@ export class Agent {
       { role: "system" as const, content: this.options.systemPrompt },
       { role: "user" as const, content: prompt },
     ];
+    if (this.options.skillCatalog) {
+      this.options.tracer?.trace({ type: "skill.catalog", skills: this.options.skillCatalog.map(({ name, description }) => ({ name, description })) });
+    }
 
     for (let step = 1; step <= this.maxSteps; step += 1) {
       this.options.tracer?.trace({ type: "model.request", step });
@@ -73,8 +79,12 @@ export class Agent {
       try {
         payload = { ok: true, result: await tool.execute(toolCall.arguments) };
         ok = true;
-      } catch {
-        payload = { ok: false, error: { type: "ToolExecutionError", message: "Tool execution failed." } };
+      } catch (error) {
+        if (error instanceof ToolExecutionError) {
+          payload = { ok: false, error: { type: error.type, message: error.message } };
+        } else {
+          payload = { ok: false, error: { type: "ToolExecutionError", message: "Tool execution failed." } };
+        }
       }
     }
 
@@ -93,6 +103,16 @@ export class Agent {
       payload,
       durationMs: Date.now() - startedAt,
     });
+    if (tool?.runtime?.kind === "load-skill") {
+      const loaded = ok ? (payload as { result: { name?: unknown; alreadyLoaded?: unknown } }).result : undefined;
+      this.options.tracer?.trace({
+        type: "skill.load",
+        step,
+        name: typeof loaded?.name === "string" ? loaded.name : String(toolCall.arguments.name ?? ""),
+        ok,
+        ...(typeof loaded?.alreadyLoaded === "boolean" ? { alreadyLoaded: loaded.alreadyLoaded } : {}),
+      });
+    }
     return result;
   }
 }

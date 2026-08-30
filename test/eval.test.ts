@@ -5,6 +5,7 @@ import { parseEvalDataset, runEval, type EvalRuntime } from "../src/eval/runner.
 import type { ModelProvider, ModelRequest, ModelResponse } from "../src/model/types.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AgentTool } from "../src/tools/types.js";
+import { createLoadSkillTool } from "../src/skills/runtime.js";
 
 class FakeModel implements ModelProvider {
   constructor(private readonly responses: ModelResponse[]) {}
@@ -78,5 +79,26 @@ describe("eval runner", () => {
     const report = await runEval(parseEvalDataset([{ id: "runtime-error", prompt: "Hello", expect: { requiredTools: [], forbiddenTools: [], maxToolCalls: 0, outputIncludes: [] } }]), runtime([], []));
     expect(report.cases[0]).toMatchObject({ status: "error", assertions: { completed: false, passed: false } });
     expect(() => parseEvalDataset([{ id: "missing-expect", prompt: "x" }])).toThrow("Invalid eval dataset");
+  });
+
+  it("evaluates expected progressive skill-load tool usage", async () => {
+    const skills = [{ name: "test-skill", description: "Test guidance.", tags: [], body: "Use the test tool.", path: "/skills/test/SKILL.md" }];
+    const loadSkill = createLoadSkillTool(skills);
+    const report = await runEval(parseEvalDataset([{ id: "load-skill", prompt: "Use guidance.", expect: { requiredTools: ["runtime.load_skill"], forbiddenTools: [], maxToolCalls: 1, outputIncludes: ["Done"] } }]), {
+      ...runtime([], [loadSkill]),
+      skills,
+      tools: [loadSkill],
+      createAgent: (tracer) => new Agent({
+        model: new FakeModel([
+          { message: { role: "assistant", content: "", toolCalls: [{ id: "load", name: "runtime.load_skill", arguments: { name: "test-skill" } }] } },
+          { message: { role: "assistant", content: "Done." } },
+        ]),
+        tools: new ToolRegistry([createLoadSkillTool(skills)]), systemPrompt: "Skill catalog only.", skillCatalog: skills,
+        reasoning: { mode: "effort", effort: "high" }, modelOptions: {}, tracer,
+      }),
+    });
+
+    expect(report.summary).toEqual({ total: 1, passed: 1, failed: 0 });
+    expect(report.cases[0]?.trace.steps).toContainEqual(expect.objectContaining({ type: "skill.load", name: "test-skill", ok: true }));
   });
 });

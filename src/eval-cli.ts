@@ -16,6 +16,7 @@ import type { ReasoningConfig } from "./model/types.js";
 import { loadSystemPrompt } from "./prompts/loader.js";
 import { buildSystemPrompt } from "./skills/context.js";
 import { loadSkills, selectSkills } from "./skills/loader.js";
+import { createLoadSkillTool } from "./skills/runtime.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { createTestTools } from "./tools/test-tools.js";
 
@@ -27,7 +28,7 @@ export async function runEvalCli(argv = hideBin(process.argv)): Promise<boolean>
     .option("model", { type: "string", description: "Override the configured Ollama model." })
     .option("prompt", { type: "string", description: "Override the configured system prompt path." })
     .option("skill", { type: "string", array: true, nargs: 1, description: "Load one named skill; repeatable." })
-    .option("skills", { choices: ["all", "none"] as const, description: "Load all skills or no skills." })
+    .option("skills", { choices: ["all", "none", "progressive"] as const, description: "Load all, no, or progressively disclosed skills." })
     .option("reasoning", { choices: ["default", "off", "on", "low", "medium", "high", "max"] as const, description: "Override reasoning mode or effort." })
     .option("max-steps", { type: "number", description: "Maximum model turns before the agent stops." })
     .option("output", { type: "string", description: "Write the JSON report to this file as well as stdout." })
@@ -39,8 +40,11 @@ export async function runEvalCli(argv = hideBin(process.argv)): Promise<boolean>
   if ((arguments_.skill?.length ?? 0) > 0 && arguments_.skills === "all") throw new ConfigError("--skill cannot be combined with --skills all.");
   const config = await loadConfig({ configPath: arguments_.config, modelName: arguments_.model, reasoning: arguments_.reasoning ? parseReasoningOption(arguments_.reasoning) : undefined });
   const basePrompt = await loadSystemPrompt(arguments_.prompt ? resolve(arguments_.prompt) : config.agent.systemPrompt);
-  const skills = selectSkills(await loadSkills(config.skills.directories), arguments_.skills ?? config.skills.mode, arguments_.skill ?? []);
+  const availableSkills = await loadSkills(config.skills.directories);
+  const skills = selectSkills(availableSkills, arguments_.skills ?? config.skills.mode, arguments_.skill ?? []);
+  const progressiveSkills = (arguments_.skills ?? config.skills.mode) === "progressive";
   const tools = new ToolRegistry(createTestTools());
+  if (progressiveSkills) tools.register(createLoadSkillTool(skills, availableSkills));
   const mcp = new McpManager(config.mcpServers, undefined, config.tools);
   try {
     await mcp.connectAndRegister(tools);
@@ -49,7 +53,7 @@ export async function runEvalCli(argv = hideBin(process.argv)): Promise<boolean>
       model: config.model.name, reasoning: config.model.reasoning, modelOptions: config.model.options,
       promptPath: arguments_.prompt ? resolve(arguments_.prompt) : config.agent.systemPrompt, promptContent: basePrompt,
       skills, tools: tools.entries(), secretValues: Object.values(config.mcpServers).flatMap((server) => Object.values(server.env ?? {})),
-      createAgent: (tracer) => new Agent({ model: new OllamaProvider({ baseUrl: config.model.baseUrl, model: config.model.name }), tools, systemPrompt: buildSystemPrompt(basePrompt, skills), reasoning: config.model.reasoning, modelOptions: config.model.options, maxSteps: arguments_["max-steps"] ?? config.agent.maxSteps, tracer }),
+      createAgent: (tracer) => new Agent({ model: new OllamaProvider({ baseUrl: config.model.baseUrl, model: config.model.name }), tools, systemPrompt: buildSystemPrompt(basePrompt, skills, progressiveSkills ? "progressive" : "eager"), reasoning: config.model.reasoning, modelOptions: config.model.options, maxSteps: arguments_["max-steps"] ?? config.agent.maxSteps, tracer, ...(progressiveSkills ? { skillCatalog: skills } : {}) }),
     });
     const json = JSON.stringify(report, null, 2);
     if (arguments_.output) await writeFile(resolve(arguments_.output), `${json}\n`, "utf8");

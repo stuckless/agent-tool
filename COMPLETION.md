@@ -210,4 +210,31 @@ The `agent-eval --help` CLI demonstration and the example dataset format can be 
 
 ## Regroup Point
 
-Phase 6 is complete. Stop here before Phase 7.
+Phase 6 is complete.
+
+## Phase 7 — Progressive Skill Disclosure
+
+**Status:** Complete and verified deterministically.
+
+Delivered:
+
+- opt-in `skills.mode: "progressive"` and `--skills progressive`, while `all` remains the eager default
+- compact `<skill-catalog>` system context containing selected skill names and descriptions only
+- runtime-owned `runtime.load_skill` tool that returns the full body of a selected skill as an ordered tool result
+- per-run load tracking: repeat requests return `alreadyLoaded` without duplicating the skill body; unknown and unselected requests return safe normalized errors
+- unified local, MCP, and runtime tool registration/trace metadata, including `runtime` as a trace source
+- observable `skill.catalog` and `skill.load` events in human and JSON traces, with no provider thinking text exposed by default
+- eval coverage for required `runtime.load_skill` usage
+
+Deterministic verification completed:
+
+```text
+npm test          # 39 tests passed; 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+node dist/cli.js --skills progressive --help
+```
+
+Fake-model tests verify the compact catalog before loading, ordered model → `runtime.load_skill` → next-model context flow, duplicate avoidance, safe unknown/unselected errors, JSON/human trace events, coexistence with local and normalized MCP tools, and an eval case requiring skill loading. Normal tests use no Ollama, network connection, production MCP server, or credentials.
+
+The CLI help demonstration confirms the progressive option with only local deterministic components. No live Ollama progressive-skill run, real MCP progressive-skill run, or measured context-efficiency/tool-choice comparison has been performed; these remain optional manual/live checks. Stop here to regroup before Phase 8.

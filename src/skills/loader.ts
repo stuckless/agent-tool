@@ -63,9 +63,9 @@ export async function loadSkill(path: string): Promise<Skill> {
   return { name, description, tags: metadata.tags, body, path };
 }
 
-export function selectSkills(skills: Skill[], mode: "all" | "none", requestedNames: string[]): Skill[] {
+export function selectSkills(skills: Skill[], mode: "all" | "none" | "progressive", requestedNames: string[]): Skill[] {
   if (requestedNames.length === 0) {
-    return mode === "all" ? skills : [];
+    return mode === "none" ? [] : skills;
   }
 
   const byName = new Map(skills.map((skill) => [skill.name, skill]));

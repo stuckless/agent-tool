@@ -8,6 +8,9 @@ import { Agent } from "../src/agent/agent.js";
 import type { ModelProvider, ModelRequest, ModelResponse } from "../src/model/types.js";
 import { buildSystemPrompt } from "../src/skills/context.js";
 import { SkillError, loadSkills, selectSkills, type Skill } from "../src/skills/loader.js";
+import { createLoadSkillTool } from "../src/skills/runtime.js";
+import { TraceRecorder } from "../src/trace/trace.js";
+import { createMcpAgentTool } from "../src/mcp/manager.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createTestTools } from "../src/tools/test-tools.js";
 
@@ -52,6 +55,19 @@ class SkillAwareModel implements ModelProvider {
       };
     }
     return { message: { role: "assistant", content: "Used the skill and retrieved the current value." } };
+  }
+}
+
+class FakeModel implements ModelProvider {
+  readonly requests: ModelRequest[] = [];
+
+  constructor(private readonly responses: ModelResponse[]) {}
+
+  async chat(request: ModelRequest): Promise<ModelResponse> {
+    this.requests.push(structuredClone(request));
+    const response = this.responses.shift();
+    if (!response) throw new Error("Fake model ran out of responses.");
+    return response;
   }
 }
 
@@ -130,5 +146,71 @@ describe("skills", () => {
       { role: "user", content: question },
     ]);
     expect(enabledModel.requests[0]?.messages[1]).toEqual({ role: "user", content: question });
+  });
+
+  it("progressively catalogs selected skills, loads one in order, and keeps it available without duplication", async () => {
+    const skills: Skill[] = [
+      { name: "work-orders", description: "Work order guidance.", tags: [], body: "Use the count tool before answering.", path: "/skills/work-orders/SKILL.md" },
+      { name: "locations", description: "Location guidance.", tags: [], body: "Resolve locations first.", path: "/skills/locations/SKILL.md" },
+    ];
+    const model = new FakeModel([
+      { message: { role: "assistant", content: "", toolCalls: [{ id: "load", name: "runtime.load_skill", arguments: { name: "work-orders" } }] } },
+      { message: { role: "assistant", content: "", toolCalls: [{ id: "again", name: "runtime.load_skill", arguments: { name: "work-orders" } }] } },
+      { message: { role: "assistant", content: "The loaded instructions were followed." } },
+    ]);
+    const tracer = new TraceRecorder({ model: "fake", reasoning: { mode: "provider-default" }, modelOptions: {}, promptPath: "prompt.md", promptContent: "Base.", skills, tools: [...createTestTools(), createLoadSkillTool(skills)], showThinking: false });
+    const agent = new Agent({
+      model,
+      tools: new ToolRegistry([...createTestTools(), createLoadSkillTool(skills)]),
+      systemPrompt: buildSystemPrompt("Base.\n", skills, "progressive"),
+      skillCatalog: skills,
+      reasoning: { mode: "provider-default" },
+      modelOptions: {},
+      tracer,
+    });
+
+    await expect(agent.run("Count work orders.")).resolves.toMatchObject({ answer: "The loaded instructions were followed.", steps: 3 });
+    expect(model.requests[0]?.messages[0]?.content).toContain("work-orders — Work order guidance.");
+    expect(model.requests[0]?.messages[0]?.content).not.toContain("Use the count tool before answering.");
+    expect(model.requests[1]?.messages.at(-1)).toEqual({ role: "tool", toolCallId: "load", name: "runtime.load_skill", content: JSON.stringify({ ok: true, result: { name: "work-orders", content: "Use the count tool before answering.", alreadyLoaded: false } }) });
+    expect(model.requests[2]?.messages.at(-1)).toEqual({ role: "tool", toolCallId: "again", name: "runtime.load_skill", content: JSON.stringify({ ok: true, result: { name: "work-orders", alreadyLoaded: true } }) });
+    expect(model.requests[2]?.messages.filter((message) => message.role === "tool" && message.name === "runtime.load_skill")).toHaveLength(2);
+    expect(tracer.toJson().steps).toContainEqual(expect.objectContaining({ type: "skill.catalog", skills: [{ name: "work-orders", description: "Work order guidance." }, { name: "locations", description: "Location guidance." }] }));
+    expect(tracer.toJson().steps).toContainEqual(expect.objectContaining({ type: "skill.load", name: "work-orders", ok: true, alreadyLoaded: false }));
+    expect(tracer.toJson().steps).toContainEqual(expect.objectContaining({ type: "skill.load", name: "work-orders", ok: true, alreadyLoaded: true }));
+  });
+
+  it("returns safe normalized errors for unknown and unselected skill requests", async () => {
+    const selected: Skill[] = [{ name: "work-orders", description: "Work order guidance.", tags: [], body: "Use a count tool.", path: "/skills/work-orders/SKILL.md" }];
+    const available = [...selected, { name: "assets", description: "Asset guidance.", tags: [], body: "Inspect assets.", path: "/skills/assets/SKILL.md" }];
+    const model = new FakeModel([
+      { message: { role: "assistant", content: "", toolCalls: [{ id: "unselected", name: "runtime.load_skill", arguments: { name: "assets" } }] } },
+      { message: { role: "assistant", content: "", toolCalls: [{ id: "unknown", name: "runtime.load_skill", arguments: { name: "missing" } }] } },
+      { message: { role: "assistant", content: "Recovered." } },
+    ]);
+    const agent = new Agent({ model, tools: new ToolRegistry([createLoadSkillTool(selected, available)]), systemPrompt: buildSystemPrompt("Base.", selected, "progressive"), skillCatalog: selected, reasoning: { mode: "provider-default" }, modelOptions: {} });
+
+    await expect(agent.run("Load assets.")).resolves.toMatchObject({ answer: "Recovered." });
+    expect(model.requests[1]?.messages.at(-1)).toEqual({ role: "tool", toolCallId: "unselected", name: "runtime.load_skill", content: JSON.stringify({ ok: false, error: { type: "SkillNotSelected", message: "Skill \"assets\" was not selected for this run." } }) });
+    expect(model.requests[2]?.messages.at(-1)).toEqual({ role: "tool", toolCallId: "unknown", name: "runtime.load_skill", content: JSON.stringify({ ok: false, error: { type: "UnknownSkill", message: "Skill \"missing\" is not known." } }) });
+  });
+
+  it("keeps runtime, local, and MCP tools in one callable registry", async () => {
+    const skills: Skill[] = [{ name: "work-orders", description: "Work order guidance.", tags: [], body: "Use the available tools.", path: "/skills/work-orders/SKILL.md" }];
+    const mcpTool = createMcpAgentTool("demo", { name: "lookup", description: "Look up a record.", inputSchema: { type: "object" } }, {
+      async connect() {}, async listTools() { return []; }, async close() {},
+      async callTool() { return { content: [{ type: "text", text: "record found" }] }; },
+    });
+    const model = new FakeModel([
+      { message: { role: "assistant", content: "", toolCalls: [{ id: "load", name: "runtime.load_skill", arguments: { name: "work-orders" } }] } },
+      { message: { role: "assistant", content: "", toolCalls: [{ id: "mcp", name: "demo.lookup", arguments: {} }] } },
+      { message: { role: "assistant", content: "Done." } },
+    ]);
+    const registry = new ToolRegistry([...createTestTools(), createLoadSkillTool(skills), mcpTool]);
+    const agent = new Agent({ model, tools: registry, systemPrompt: buildSystemPrompt("Base.", skills, "progressive"), skillCatalog: skills, reasoning: { mode: "provider-default" }, modelOptions: {} });
+
+    await expect(agent.run("Look this up.")).resolves.toMatchObject({ answer: "Done." });
+    expect(model.requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "get_current_test_value", "runtime.load_skill", "demo.lookup"]);
+    expect(model.requests[2]?.messages.at(-1)).toMatchObject({ role: "tool", name: "demo.lookup", content: expect.stringContaining("record found") });
   });
 });

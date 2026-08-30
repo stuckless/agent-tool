@@ -1,6 +1,9 @@
 import type { AssistantMessage, ConversationMessage, ModelToolCall } from "../model/types.js";
+import type { Skill } from "../skills/loader.js";
 
 export type AgentTraceEvent =
+  | { type: "skill.catalog"; skills: Array<Pick<Skill, "name" | "description">> }
+  | { type: "skill.load"; step: number; name: string; ok: boolean; alreadyLoaded?: boolean }
   | { type: "model.request"; step: number }
   | {
       type: "model.response";

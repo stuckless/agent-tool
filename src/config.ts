@@ -34,7 +34,7 @@ const rawConfigSchema = z.object({
   skills: z
     .object({
       directories: z.array(z.string().min(1)).default(["./skills"]),
-      mode: z.enum(["all", "none"]).default("all"),
+      mode: z.enum(["all", "none", "progressive"]).default("all"),
     })
     .default({ directories: ["./skills"], mode: "all" }),
   mcpServers: z
@@ -70,7 +70,7 @@ export interface ToolPolicy {
 
 export interface SkillsConfig {
   directories: string[];
-  mode: "all" | "none";
+  mode: "all" | "none" | "progressive";
 }
 
 export interface RuntimeConfig {

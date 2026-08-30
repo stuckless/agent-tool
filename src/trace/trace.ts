@@ -34,7 +34,7 @@ export interface JsonTrace {
   modelOptions: Record<string, unknown>;
   systemPrompt: { path: string; sha256: string };
   skills: Array<{ name: string; description: string; tags: string[]; path: string }>;
-  tools: Array<{ name: string; description: string; source: "local" | "mcp"; mcpServer?: string }>;
+  tools: Array<{ name: string; description: string; source: "local" | "mcp" | "runtime"; mcpServer?: string }>;
   steps: TraceEventRecord[];
   finalAnswer?: string;
   status: "running" | "completed" | "error";
@@ -70,6 +70,12 @@ export class TraceRecorder implements AgentTracer {
   trace(event: AgentTraceEvent): void {
     const atMs = this.now() - this.startedAtMs;
     switch (event.type) {
+      case "skill.catalog":
+        this.runTrace.steps.push({ type: event.type, step: 0, atMs, skills: event.skills });
+        return;
+      case "skill.load":
+        this.runTrace.steps.push({ type: event.type, step: event.step, atMs, name: event.name, ok: event.ok, ...(event.alreadyLoaded === undefined ? {} : { alreadyLoaded: event.alreadyLoaded }) });
+        return;
       case "model.request":
         this.runTrace.steps.push({ type: event.type, step: event.step, atMs });
         return;
@@ -153,11 +159,13 @@ export class TraceRecorder implements AgentTracer {
 
 function toTraceTool(tool: AgentTool): JsonTrace["tools"][number] {
   const mcp = "mcp" in tool ? tool.mcp as { serverName: string } : undefined;
-  return { name: tool.name, description: tool.description, source: mcp ? "mcp" : "local", ...(mcp ? { mcpServer: mcp.serverName } : {}) };
+  return { name: tool.name, description: tool.description, source: mcp ? "mcp" : tool.runtime ? "runtime" : "local", ...(mcp ? { mcpServer: mcp.serverName } : {}) };
 }
 
 function formatEvent(event: TraceEventRecord): string[] {
   const heading = `\nStep ${event.step}`;
+  if (event.type === "skill.catalog") return ["\nSkill catalog", ...((event.skills as Array<{ name: string; description: string }>).map((skill) => `  ${skill.name}: ${skill.description}`))];
+  if (event.type === "skill.load") return [heading, `  skill → ${event.ok ? "loaded" : "failed"}: ${event.name}${event.alreadyLoaded ? " (already loaded)" : ""}`];
   if (event.type === "model.request") return [heading, "  model → request"];
   if (event.type === "model.response") {
     const reasoning = event.reasoning as { exposed: boolean; characters?: number; text?: string };

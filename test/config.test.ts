@@ -82,4 +82,10 @@ describe("loadConfig", () => {
 
     await expect(loadSystemPrompt(promptPath)).resolves.toBe("Answer in plain language.\n");
   });
+
+  it("accepts progressive skill disclosure configuration", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "agent-tool-config-"));
+    await writeFile(join(directory, "agent.config.json"), JSON.stringify({ model: { name: "test" }, skills: { mode: "progressive" } }));
+    await expect(loadConfig({ cwd: directory, environment: {} })).resolves.toMatchObject({ skills: { mode: "progressive" } });
+  });
 });
