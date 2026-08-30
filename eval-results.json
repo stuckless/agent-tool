@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-08-30T15:00:35.392Z",
+  "completedAt": "2026-08-30T15:00:50.036Z",
+  "model": "granite4.2:8b",
+  "reasoningConfig": {
+    "mode": "provider-default"
+  },
+  "cases": [
+    {
+      "id": "explain-work-order",
+      "prompt": {
+        "sha256": "130808db58a1bc54b11af7ab22ce7d3f0451a332f99b41758b0a83cbba259c14"
+      },
+      "status": "completed",
+      "assertions": {
+        "completed": true,
+        "requiredTools": {},
+        "forbiddenTools": {},
+        "maxToolCalls": {
+          "limit": 0,
+          "actual": 0,
+          "passed": true
+        },
+        "outputIncludes": {
+          "work order": true
+        },
+        "noToolErrors": true,
+        "passed": true
+      },
+      "trace": {
+        "startedAt": "2026-08-30T15:00:35.392Z",
+        "model": "granite4.2:8b",
+        "reasoningConfig": {
+          "mode": "provider-default"
+        },
+        "modelOptions": {},
+        "systemPrompt": {
+          "path": "/home/sls/git/agent-tool/prompts/minimal.md",
+          "sha256": "1989f26f3260f6911ccc88fd1c32f4ca31ffbb1a89d3cf7629bbffee7de3c368"
+        },
+        "skills": [],
+        "tools": [
+          {
+            "name": "echo",
+            "description": "Returns the supplied value exactly.",
+            "source": "local"
+          },
+          {
+            "name": "get_current_test_value",
+            "description": "Returns the current deterministic test value.",
+            "source": "local"
+          }
+        ],
+        "steps": [
+          {
+            "type": "model.request",
+            "step": 1,
+            "atMs": 1
+          },
+          {
+            "type": "model.response",
+            "step": 1,
+            "atMs": 14643,
+            "toolCalls": 0,
+            "content": "A work order is a documented record that outlines a specific task, service, or piece of work to be performed. It typically includes details such as:\n\n- **Purpose/Description**: What needs to be done (e.g., \"Repair HVAC unit,\" \"Install software update,\" \"Perform preventive maintenance\").\n- **Location/Asset**: Where the work occurs (e.g., \"Office building, Room 205,\" \"Server Room A,\" \"Vehicle ID #123\").\n- **Assigned personnel**: Who is responsible for performing the work (e.g., \"Technician John Smith,\" \"Maintenance team\").\n- **Required parts/tools/materials**: Any components, supplies, or equipment needed.\n- **Priority/deadline**: urgency level (e.g., \"High,\" \"Normal,\" \"Low\") and target completion date/time.\n- **Status tracking**: Current stage (e.g., \"Pending,\" \"In progress,\" \"Completed,\" \"Pending inspection\").\n- **Notes/observations**: Additional details, findings, or instructions.\n\nWork orders are commonly used in industries like facilities maintenance, construction, healthcare, field service, manufacturing, and IT support. They serve to ensure tasks are clear, accountable, trackable, and completed efficiently while minimizing errors or missed steps. They are usually created electronically (via a work order system/software) or on paper and updated as the task progresses.\n\n*(No tool calls were needed for this definition, as it is factual and requires no external data.)*",
+            "reasoning": {
+              "exposed": true,
+              "characters": 619
+            }
+          },
+          {
+            "type": "run.complete",
+            "step": 1,
+            "atMs": 14643
+          }
+        ],
+        "status": "completed",
+        "finalAnswer": "A work order is a documented record that outlines a specific task, service, or piece of work to be performed. It typically includes details such as:\n\n- **Purpose/Description**: What needs to be done (e.g., \"Repair HVAC unit,\" \"Install software update,\" \"Perform preventive maintenance\").\n- **Location/Asset**: Where the work occurs (e.g., \"Office building, Room 205,\" \"Server Room A,\" \"Vehicle ID #123\").\n- **Assigned personnel**: Who is responsible for performing the work (e.g., \"Technician John Smith,\" \"Maintenance team\").\n- **Required parts/tools/materials**: Any components, supplies, or equipment needed.\n- **Priority/deadline**: urgency level (e.g., \"High,\" \"Normal,\" \"Low\") and target completion date/time.\n- **Status tracking**: Current stage (e.g., \"Pending,\" \"In progress,\" \"Completed,\" \"Pending inspection\").\n- **Notes/observations**: Additional details, findings, or instructions.\n\nWork orders are commonly used in industries like facilities maintenance, construction, healthcare, field service, manufacturing, and IT support. They serve to ensure tasks are clear, accountable, trackable, and completed efficiently while minimizing errors or missed steps. They are usually created electronically (via a work order system/software) or on paper and updated as the task progresses.\n\n*(No tool calls were needed for this definition, as it is factual and requires no external data.)*",
+        "completedAt": "2026-08-30T15:00:50.035Z",
+        "durationMs": 14643
+      }
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0
+  }
+}

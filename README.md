@@ -1,6 +1,6 @@
 # agent-tool
 
-A small, transparent agent runtime for Node.js. Phase 5 adds inspectable human and JSON trace modes to the compact tool-calling loop.
+A small, transparent agent runtime for Node.js. Phase 6 adds deterministic, objective eval runs to the compact tool-calling loop.
 
 ## Requirements
 
@@ -156,4 +156,14 @@ npm run typecheck
 npm run build
 ```
 
-Phase 6 evaluations are not implemented. A live-model check that enabling a skill changes tool selection or answer behavior has not been performed; normal tests use only deterministic fake components.
+### Evaluations
+
+`agent-eval` runs a JSON dataset through the same agent runtime, skills, local tools, MCP integration, configuration, and reasoning setting as a normal run. It emits a structured JSON report to stdout; use `--output` to save the same report for later comparison:
+
+```bash
+AGENT_MODEL="your-local-model" npm run dev:eval -- examples/demo-evals.json --output eval-results.json
+```
+
+Each case requires `id`, `prompt`, and an `expect` object with `requiredTools`, `forbiddenTools`, `maxToolCalls`, and `outputIncludes`. A run passes only when it completes, matches every tool/output assertion, stays under the call limit, and has no tool errors. The report records a SHA-256 prompt identity, selected skills, available tools, model turns and tool-call events, final completion/error status, and the configured model/reasoning metadata. It never uses provider-exposed thinking text to make eval decisions.
+
+The included [demo-evals.json](examples/demo-evals.json) is a format example; it needs a model that reliably includes `work order` and is not a deterministic model acceptance test. Deterministic normal tests use only fake models and local tools. No live Ollama eval, real MCP eval, or manual check that a skill changes live model behavior has been performed; those remain optional follow-up checks after Phase 6.

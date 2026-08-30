@@ -184,6 +184,30 @@ The new deterministic tests verify ordered JSON trace events, human trace output
 
 CLI demonstrations of both `--trace` and `--trace-json` were run against a local fake Ollama response, confirming that the trace is emitted on stderr while the final answer stays on stdout. No live Ollama run or real MCP tool-call trace was performed in Phase 5; those remain optional manual checks. `--show-thinking` was exercised deterministically, not against a live model.
 
+## Phase 6 — Eval Runner
+
+**Status:** Complete and verified deterministically.
+
+Delivered:
+
+- separate `agent-eval <dataset.json>` CLI with relevant configuration, skills, MCP, model, reasoning, and max-step controls
+- JSON dataset validation and objective assertions for completion, required/forbidden tools, maximum calls, output text, and no tool errors
+- structured JSON reports with prompt hashes, selected skills, available tools, complete observable model/tool trace events, completion/error state, assertion outcomes, model, and reasoning metadata
+- optional `--output` report persistence for later comparison
+- `examples/demo-evals.json` format example
+
+Deterministic verification completed:
+
+```text
+npm test
+npm run typecheck
+npm run build
+```
+
+Fake-model tests cover passing cases, missing required tools, forbidden tools, call limits, output checks, safe tool errors, runtime failures, prompt hashing, and recorded controlled reasoning metadata. Normal tests use no Ollama, external network, production MCP server, or credentials.
+
+The `agent-eval --help` CLI demonstration and the example dataset format can be exercised locally. A live Ollama eval, real MCP eval, and manual comparison of reasoning settings or skill impact were not performed; these are optional manual/live checks and are not claimed as deterministic acceptance.
+
 ## Regroup Point
 
-Phase 5 is complete. Stop here before Phase 6 evaluations.
+Phase 6 is complete. Stop here before Phase 7.

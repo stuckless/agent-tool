@@ -1,0 +1,12 @@
+[
+  {
+    "id": "explain-work-order",
+    "prompt": "Explain what a work order is.",
+    "expect": {
+      "requiredTools": [],
+      "forbiddenTools": [],
+      "maxToolCalls": 0,
+      "outputIncludes": ["work order"]
+    }
+  }
+]
