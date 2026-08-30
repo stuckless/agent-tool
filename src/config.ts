@@ -1,0 +1,118 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+import { z } from "zod";
+
+const defaultOllamaBaseUrl = "http://localhost:11434";
+const defaultSystemPrompt = "./prompts/minimal.md";
+
+const rawConfigSchema = z.object({
+  model: z
+    .object({
+      provider: z.literal("ollama").default("ollama"),
+      baseUrl: z.string().url().optional(),
+      name: z.string().min(1).optional(),
+      options: z.record(z.string(), z.unknown()).default({}),
+    })
+    .default({ provider: "ollama", options: {} }),
+  agent: z
+    .object({
+      systemPrompt: z.string().min(1).optional(),
+    })
+    .default({}),
+});
+
+export interface RuntimeConfig {
+  model: {
+    provider: "ollama";
+    baseUrl: string;
+    name: string;
+    options: Record<string, unknown>;
+  };
+  agent: {
+    systemPrompt: string;
+  };
+}
+
+export interface LoadConfigOptions {
+  cwd?: string;
+  configPath?: string;
+  modelName?: string;
+  environment?: NodeJS.ProcessEnv;
+}
+
+export class ConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConfigError";
+  }
+}
+
+export async function loadConfig(options: LoadConfigOptions = {}): Promise<RuntimeConfig> {
+  const cwd = options.cwd ?? process.cwd();
+  const environment = options.environment ?? process.env;
+  const configPath = options.configPath ? resolve(cwd, options.configPath) : resolve(cwd, "agent.config.json");
+  const isExplicitConfig = options.configPath !== undefined;
+  const rawConfig = await readConfigFile(configPath, isExplicitConfig);
+  const parsedConfig = rawConfigSchema.safeParse(rawConfig);
+
+  if (!parsedConfig.success) {
+    throw new ConfigError(`Invalid configuration in ${configPath}: ${parsedConfig.error.issues[0]?.message ?? "unknown error"}`);
+  }
+
+  const modelName = options.modelName ?? environment.AGENT_MODEL ?? parsedConfig.data.model.name;
+  if (!modelName) {
+    throw new ConfigError("Missing model name. Set model.name in agent.config.json, use --model, or set AGENT_MODEL.");
+  }
+
+  const baseUrl = environment.AGENT_OLLAMA_URL ?? parsedConfig.data.model.baseUrl ?? defaultOllamaBaseUrl;
+  if (!isHttpUrl(baseUrl)) {
+    throw new ConfigError("Ollama base URL must be an http or https URL.");
+  }
+
+  return {
+    model: {
+      provider: "ollama",
+      baseUrl: baseUrl.replace(/\/$/, ""),
+      name: modelName,
+      options: parsedConfig.data.model.options,
+    },
+    agent: {
+      systemPrompt: resolve(cwd, parsedConfig.data.agent.systemPrompt ?? defaultSystemPrompt),
+    },
+  };
+}
+
+async function readConfigFile(configPath: string, isExplicitConfig: boolean): Promise<unknown> {
+  try {
+    const contents = await readFile(configPath, "utf8");
+    return JSON.parse(contents) as unknown;
+  } catch (error) {
+    if (isMissingFile(error) && !isExplicitConfig) {
+      return {};
+    }
+
+    if (error instanceof SyntaxError) {
+      throw new ConfigError(`Configuration file contains invalid JSON: ${configPath}`);
+    }
+
+    if (isMissingFile(error)) {
+      throw new ConfigError(`Configuration file was not found: ${configPath}`);
+    }
+
+    throw new ConfigError(`Could not read configuration file: ${configPath}`);
+  }
+}
+
+function isMissingFile(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}

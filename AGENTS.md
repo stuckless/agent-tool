@@ -83,6 +83,17 @@ Normal tests must not require:
 
 Live integration tests must be opt-in.
 
+### Remote Ollama Testing
+
+Use this remote Ollama configuration for manual/live tests:
+
+```bash
+AGENT_OLLAMA_URL=http://192.168.11.10:11434
+AGENT_MODEL=granite4.2:8b
+```
+
+The remote server is not fast. Do not make normal tests depend on it, and allow generous time for opt-in manual model checks.
+
 ## Scope Control
 
 Do not add:

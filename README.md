@@ -1,6 +1,6 @@
 # agent-tool
 
-A small, transparent agent runtime for Node.js. This repository is being built in phases; Phase 0 provides the TypeScript and CLI foundation.
+A small, transparent agent runtime for Node.js. Phase 1 supports one Ollama chat request with a configurable system prompt; tools and the agent loop arrive in later phases.
 
 ## Requirements
 
@@ -15,18 +15,38 @@ npm install
 
 ## CLI
 
-During Phase 0, the CLI simply prints the prompt through a placeholder handler:
+Configure the model with an environment variable:
 
 ```bash
-npm run dev -- "hello"
+AGENT_MODEL="your-local-model" npm run dev -- "explain what a work order is"
 ```
 
-The package also exposes an `agent-tool` executable after building and linking it locally:
+Or create `agent.config.json` in the project directory:
+
+```json
+{
+  "model": {
+    "provider": "ollama",
+    "baseUrl": "http://localhost:11434",
+    "name": "your-local-model",
+    "options": {
+      "temperature": 0
+    }
+  },
+  "agent": {
+    "systemPrompt": "./prompts/minimal.md"
+  }
+}
+```
+
+`AGENT_OLLAMA_URL` overrides the configured Ollama base URL, and `AGENT_MODEL` or `--model` override the configured model. Use `--config <path>` to load a different JSON config file or `--prompt <path>` to override the system prompt for one run.
+
+The package exposes an `agent-tool` executable after building and linking it locally:
 
 ```bash
 npm run build
 npm link
-agent-tool "hello"
+agent-tool "explain what a work order is"
 ```
 
 ## Development
@@ -37,4 +57,4 @@ npm run typecheck
 npm run build
 ```
 
-Later phases will add model configuration, Ollama calls, skills, MCP tools, traces, and evaluations.
+Later phases will add tool calling, skills, MCP tools, traces, and evaluations.
