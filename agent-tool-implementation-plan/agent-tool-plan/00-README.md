@@ -56,6 +56,7 @@ See `01-DECISIONS.md` for details.
 - `10-TESTING.md` — unit/integration testing strategy.
 - `11-ROADMAP.md` — deliberately deferred capabilities and experiments.
 - `12-REASONING-THINKING.md` — reasoning configuration, provider-exposed thinking, tool-loop preservation, tracing, and eval guidance.
+- `14-HTTP-MCP-SERVERS.md` — planned Streamable HTTP MCP transport, authentication, configuration, and acceptance criteria.
 - `AGENTS.md` — implementation guardrails for the coding assistant.
 
 ## Target Repository Shape

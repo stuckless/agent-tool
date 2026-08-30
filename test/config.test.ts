@@ -20,6 +20,15 @@ describe("loadConfig", () => {
           options: { temperature: 0 },
         },
         agent: { systemPrompt: "./custom.md" },
+        mcpServers: {
+          example: {
+            transport: "stdio",
+            command: "node",
+            args: ["./example-mcp-server.js"],
+            env: { EXAMPLE_SETTING: "value" },
+          },
+        },
+        tools: { allow: ["example.*"], deny: ["example.delete"] },
       }),
     );
 
@@ -37,6 +46,15 @@ describe("loadConfig", () => {
         options: { temperature: 0 },
       },
       agent: { systemPrompt: join(directory, "custom.md"), maxSteps: 10 },
+      mcpServers: {
+        example: {
+          transport: "stdio",
+          command: "node",
+          args: ["./example-mcp-server.js"],
+          env: { EXAMPLE_SETTING: "value" },
+        },
+      },
+      tools: { allow: ["example.*"], deny: ["example.delete"] },
     });
   });
 

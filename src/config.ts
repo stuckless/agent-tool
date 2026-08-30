@@ -31,7 +31,36 @@ const rawConfigSchema = z.object({
       maxSteps: z.number().int().positive().optional(),
     })
     .default({}),
+  mcpServers: z
+    .record(
+      z.string().min(1),
+      z.object({
+        transport: z.literal("stdio"),
+        command: z.string().min(1),
+        args: z.array(z.string()).default([]),
+        env: z.record(z.string(), z.string()).optional(),
+      }),
+    )
+    .default({}),
+  tools: z
+    .object({
+      allow: z.array(z.string().min(1)).default(["*"]),
+      deny: z.array(z.string().min(1)).default([]),
+    })
+    .default({ allow: ["*"], deny: [] }),
 });
+
+export interface McpStdioServerConfig {
+  transport: "stdio";
+  command: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
+export interface ToolPolicy {
+  allow: string[];
+  deny: string[];
+}
 
 export interface RuntimeConfig {
   model: {
@@ -45,6 +74,8 @@ export interface RuntimeConfig {
     systemPrompt: string;
     maxSteps: number;
   };
+  mcpServers: Record<string, McpStdioServerConfig>;
+  tools: ToolPolicy;
 }
 
 export interface LoadConfigOptions {
@@ -96,6 +127,8 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Runti
       systemPrompt: resolve(cwd, parsedConfig.data.agent.systemPrompt ?? defaultSystemPrompt),
       maxSteps: parsedConfig.data.agent.maxSteps ?? 10,
     },
+    mcpServers: parsedConfig.data.mcpServers,
+    tools: parsedConfig.data.tools,
   };
 }
 

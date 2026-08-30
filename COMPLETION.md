@@ -84,6 +84,49 @@ The deterministic fake-model tests prove the required sequence: a model requests
 
 The CLI help demonstration shows the Phase 2 `--max-steps` control. No live Ollama tool-calling run was performed in this phase; that remains a manual optional verification separate from the deterministic acceptance coverage.
 
+## Phase 3 — MCP Tool Integration
+
+**Status:** Complete.
+
+Delivered:
+
+- official `@modelcontextprotocol/sdk` stdio client integration
+- validated `mcpServers` JSON configuration with command, arguments, and optional environment values
+- startup discovery and namespaced registration as `serverName.toolName`
+- permissive-by-default allow/deny wildcard policy applied before MCP tool registration
+- MCP description, object input schema, annotations, source-server metadata, text content, and structured content normalization
+- execution routing from each registered tool to its originating MCP client
+- connection cleanup after normal runs and partial-startup failures
+
+Deterministic verification completed:
+
+```text
+npm test          # 21 tests
+npm run typecheck
+npm run build
+```
+
+The normal fake MCP-client tests require neither a network connection nor a production server. They cover discovery, colliding server tool names, normalized definitions and metadata, call routing, normalized MCP results, cleanup, malformed MCP schemas, and an agent model → namespaced MCP tool → final-answer sequence with the structured tool-call trace event. An opt-in real local stdio integration test is available with `AGENT_TEST_STDIO=1 npm run test:mcp-stdio`; it is excluded from normal tests because restricted sandboxes may close child-process pipes before the MCP handshake.
+
+CLI demonstration completed:
+
+```text
+npm run dev -- --help
+```
+
+The help command is the relevant no-server CLI demonstration. A live MCP server run was not performed; it remains an optional manual check with a configured local stdio server. Normal CLI runs now connect configured servers, discover their tools, execute the agent, and close all MCP clients.
+
+### Phase 3 Follow-up — Local Demo Server
+
+Delivered after Phase 3 completion:
+
+- compiled read-only demo stdio server at `dist/mcp/demo-server.js` with `get_demo_status` and `lookup_demo_record`
+- `examples/demo-mcp.config.json` and README instructions for a live-model manual run
+- optional real local-protocol test: `AGENT_TEST_STDIO=1 npm run test:mcp-stdio`
+- `14-HTTP-MCP-SERVERS.md`, a planned Streamable HTTP transport design covering configuration, environment-backed headers, OAuth, security, and acceptance tests
+
+The compiled demo server was directly verified for tool discovery and a `lookup_demo_record` call. A live-model tool-selection run remains intentionally unperformed and is left for manual testing with the configured Ollama model.
+
 ## Next Phase
 
-Phase 3 — MCP tool integration.
+Phase 4 — Skills, simple loading.

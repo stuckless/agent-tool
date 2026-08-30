@@ -12,12 +12,14 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:mcp-stdio": "vitest run test/mcp-stdio.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "yargs": "^18.0.0",
     "zod": "^4.5.4"
   },

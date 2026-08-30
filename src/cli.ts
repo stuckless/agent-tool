@@ -12,6 +12,7 @@ import type { ReasoningConfig } from "./model/types.js";
 import { loadSystemPrompt } from "./prompts/loader.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { createTestTools } from "./tools/test-tools.js";
+import { McpManager } from "./mcp/manager.js";
 
 export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const arguments_ = await yargs(argv)
@@ -41,16 +42,23 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     baseUrl: config.model.baseUrl,
     model: config.model.name,
   });
-  const agent = new Agent({
-    model,
-    tools: new ToolRegistry(createTestTools()),
-    systemPrompt,
-    reasoning: config.model.reasoning,
-    modelOptions: config.model.options,
-    maxSteps: arguments_.maxSteps ?? config.agent.maxSteps,
-  });
-  const result = await agent.run(prompt);
-  console.log(result.answer);
+  const tools = new ToolRegistry(createTestTools());
+  const mcp = new McpManager(config.mcpServers, undefined, config.tools);
+  try {
+    await mcp.connectAndRegister(tools);
+    const agent = new Agent({
+      model,
+      tools,
+      systemPrompt,
+      reasoning: config.model.reasoning,
+      modelOptions: config.model.options,
+      maxSteps: arguments_.maxSteps ?? config.agent.maxSteps,
+    });
+    const result = await agent.run(prompt);
+    console.log(result.answer);
+  } finally {
+    await mcp.close();
+  }
 }
 
 function parseReasoningOption(value: "default" | "off" | "on" | "low" | "medium" | "high" | "max"): ReasoningConfig {

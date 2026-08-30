@@ -1,0 +1,24 @@
+{
+  "model": {
+    "provider": "ollama",
+    "name": "set-with-agent-model-or-AGENT_MODEL",
+    "reasoning": {
+      "mode": "provider-default"
+    }
+  },
+  "agent": {
+    "systemPrompt": "./prompts/minimal.md",
+    "maxSteps": 4
+  },
+  "mcpServers": {
+    "demo": {
+      "transport": "stdio",
+      "command": "node",
+      "args": ["./dist/mcp/demo-server.js"]
+    }
+  },
+  "tools": {
+    "allow": ["demo.*"],
+    "deny": []
+  }
+}
