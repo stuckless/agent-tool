@@ -41,13 +41,14 @@ export class Agent {
       this.options.tracer?.trace({
         type: "model.response",
         step,
+        message: response.message,
         toolCalls: toolCalls.length,
         reasoningPresent: response.message.reasoning !== undefined,
       });
 
       messages.push(response.message);
       if (toolCalls.length === 0) {
-        this.options.tracer?.trace({ type: "run.complete", step });
+        this.options.tracer?.trace({ type: "run.complete", step, answer: response.message.content });
         return { answer: response.message.content, steps: step, messages, finalMessage: response.message };
       }
 
@@ -61,6 +62,7 @@ export class Agent {
 
   private async executeToolCall(step: number, toolCall: ModelToolCall): Promise<ToolResultMessage> {
     this.options.tracer?.trace({ type: "tool.call", step, toolCall });
+    const startedAt = Date.now();
     const tool = this.options.tools.get(toolCall.name);
     let payload: unknown;
     let ok = false;
@@ -82,7 +84,15 @@ export class Agent {
       toolCallId: toolCall.id,
       name: toolCall.name,
     };
-    this.options.tracer?.trace({ type: "tool.result", step, toolCallId: toolCall.id, name: toolCall.name, ok });
+    this.options.tracer?.trace({
+      type: "tool.result",
+      step,
+      toolCallId: toolCall.id,
+      name: toolCall.name,
+      ok,
+      payload,
+      durationMs: Date.now() - startedAt,
+    });
     return result;
   }
 }

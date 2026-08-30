@@ -1,6 +1,6 @@
 # agent-tool
 
-A small, transparent agent runtime for Node.js. Phase 4 adds simple Markdown skills to the compact tool-calling loop.
+A small, transparent agent runtime for Node.js. Phase 5 adds inspectable human and JSON trace modes to the compact tool-calling loop.
 
 ## Requirements
 
@@ -92,6 +92,30 @@ An explicit `--skill` selection overrides the configured mode. `--skills all` is
 
 Reasoning is configured separately from generic model options. Use `--reasoning default|off|on|low|medium|high|max` for a one-run override. The Ollama adapter maps these values to its `think` request field. Provider-exposed thinking is preserved as opaque model state but is not shown in normal output and never controls runtime behavior.
 
+### Trace modes
+
+Use `--trace` to write a concise, human-readable run trace to stderr. The final answer remains the only normal stdout output, so command substitution and piping stay clean:
+
+```bash
+AGENT_MODEL="your-local-model" npm run dev -- --trace "Explain a work order"
+```
+
+The trace records the configured model and reasoning configuration, system-prompt path and content hash, selected skills, available local/MCP tools, ordered model and tool events, result payloads, and completion. Reasoning configuration is trace metadata; it is not added to the system prompt.
+
+Use `--trace-json` instead for one structured JSON document on stderr, suitable for later analysis:
+
+```bash
+AGENT_MODEL="your-local-model" npm run dev -- --trace-json "Explain a work order"
+```
+
+The two trace formats are mutually exclusive. Provider-exposed thinking is hidden by default; traces record only whether it was exposed and its character count. To inspect text that the provider actually returned, use `--show-thinking` together with either trace mode:
+
+```bash
+AGENT_MODEL="your-local-model" npm run dev -- --trace --show-thinking "Explain a work order"
+```
+
+`--show-thinking` has no effect without tracing and never affects model requests or agent control flow. Trace values with common secret-like field names (`token`, `password`, `apiKey`, and similar), plus configured MCP environment values, are redacted, but traces can still contain user prompts and tool data—handle them accordingly.
+
 The agent advertises two deterministic local tools in Phase 2: `echo` and `get_current_test_value`. When the model requests a tool, the runtime appends the complete normalized assistant turn (including provider-exposed reasoning/state), executes calls in their returned order, appends structured tool-result messages, and then asks the model to continue. `--max-steps <n>` limits model turns (default: 10); reaching the limit is an error, never a partial success.
 
 Configured MCP stdio servers are started once per CLI invocation. Their tools are discovered with the official MCP SDK and registered as `serverName.toolName`, which prevents collisions between servers. MCP tool content and structured content are forwarded as normalized tool results, and clients are closed when the run finishes or fails. Do not put secrets in trace output; resolved MCP environment values are never logged.
@@ -132,4 +156,4 @@ npm run typecheck
 npm run build
 ```
 
-Later phases will add CLI trace modes and evaluations. A live-model check that enabling a skill changes tool selection or answer behavior has not been performed; normal tests use only deterministic fake components.
+Phase 6 evaluations are not implemented. A live-model check that enabling a skill changes tool selection or answer behavior has not been performed; normal tests use only deterministic fake components.

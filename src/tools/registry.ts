@@ -24,4 +24,8 @@ export class ToolRegistry {
   definitions() {
     return [...this.tools.values()].map(toModelToolDefinition);
   }
+
+  entries(): AgentTool[] {
+    return [...this.tools.values()];
+  }
 }

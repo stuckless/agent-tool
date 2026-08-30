@@ -2,10 +2,16 @@ import type { AssistantMessage, ConversationMessage, ModelToolCall } from "../mo
 
 export type AgentTraceEvent =
   | { type: "model.request"; step: number }
-  | { type: "model.response"; step: number; toolCalls: number; reasoningPresent: boolean }
+  | {
+      type: "model.response";
+      step: number;
+      message: AssistantMessage;
+      toolCalls: number;
+      reasoningPresent: boolean;
+    }
   | { type: "tool.call"; step: number; toolCall: ModelToolCall }
-  | { type: "tool.result"; step: number; toolCallId: string; name: string; ok: boolean }
-  | { type: "run.complete"; step: number };
+  | { type: "tool.result"; step: number; toolCallId: string; name: string; ok: boolean; payload: unknown; durationMs: number }
+  | { type: "run.complete"; step: number; answer: string };
 
 export interface AgentTracer {
   trace(event: AgentTraceEvent): void;

@@ -159,6 +159,31 @@ npm run dev -- --help
 
 The help output now advertises `--skill` and `--skills`. No live Ollama run was performed to observe a model changing its tool selection or final answer when a skill is enabled versus disabled; that remains an optional manual acceptance check. The existing opt-in local stdio MCP test remains separate from normal verification.
 
+## Phase 5 — Trace Modes
+
+**Status:** Complete and verified deterministically.
+
+Delivered:
+
+- `--trace` for concise human-readable run events on stderr
+- `--trace-json` for one stable-schema JSON trace document on stderr
+- `--show-thinking`, which includes only provider-exposed thinking text and only when tracing is enabled
+- trace metadata for configured model, separate reasoning configuration, prompt path/content hash, selected skills, local/MCP tool catalog, ordered model/tool events, tool arguments/results, and completion
+- central recursive redaction for common secret-like fields in trace values
+- expanded agent trace events that remain observational; the agent still makes decisions only from structured tool calls
+
+Deterministic verification completed:
+
+```text
+npm test          # 27 tests passed; 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+```
+
+The new deterministic tests verify ordered JSON trace events, human trace output, local tool catalog metadata, reasoning configuration metadata, secret-like field and configured-environment-value redaction, default hiding of provider-exposed thinking, and explicit inclusion of genuinely exposed thinking with `--show-thinking`. Normal tests use no Ollama, network connection, or production MCP server.
+
+CLI demonstrations of both `--trace` and `--trace-json` were run against a local fake Ollama response, confirming that the trace is emitted on stderr while the final answer stays on stdout. No live Ollama run or real MCP tool-call trace was performed in Phase 5; those remain optional manual checks. `--show-thinking` was exercised deterministically, not against a live model.
+
 ## Regroup Point
 
-Phase 4 is complete. Stop here before Phase 5 trace modes.
+Phase 5 is complete. Stop here before Phase 6 evaluations.
