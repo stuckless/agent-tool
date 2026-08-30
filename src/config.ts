@@ -31,6 +31,12 @@ const rawConfigSchema = z.object({
       maxSteps: z.number().int().positive().optional(),
     })
     .default({}),
+  skills: z
+    .object({
+      directories: z.array(z.string().min(1)).default(["./skills"]),
+      mode: z.enum(["all", "none"]).default("all"),
+    })
+    .default({ directories: ["./skills"], mode: "all" }),
   mcpServers: z
     .record(
       z.string().min(1),
@@ -62,6 +68,11 @@ export interface ToolPolicy {
   deny: string[];
 }
 
+export interface SkillsConfig {
+  directories: string[];
+  mode: "all" | "none";
+}
+
 export interface RuntimeConfig {
   model: {
     provider: "ollama";
@@ -74,6 +85,7 @@ export interface RuntimeConfig {
     systemPrompt: string;
     maxSteps: number;
   };
+  skills: SkillsConfig;
   mcpServers: Record<string, McpStdioServerConfig>;
   tools: ToolPolicy;
 }
@@ -126,6 +138,10 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Runti
     agent: {
       systemPrompt: resolve(cwd, parsedConfig.data.agent.systemPrompt ?? defaultSystemPrompt),
       maxSteps: parsedConfig.data.agent.maxSteps ?? 10,
+    },
+    skills: {
+      directories: parsedConfig.data.skills.directories.map((directory) => resolve(cwd, directory)),
+      mode: parsedConfig.data.skills.mode,
     },
     mcpServers: parsedConfig.data.mcpServers,
     tools: parsedConfig.data.tools,

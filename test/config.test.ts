@@ -20,6 +20,7 @@ describe("loadConfig", () => {
           options: { temperature: 0 },
         },
         agent: { systemPrompt: "./custom.md" },
+        skills: { directories: ["./team-skills"], mode: "none" },
         mcpServers: {
           example: {
             transport: "stdio",
@@ -46,6 +47,7 @@ describe("loadConfig", () => {
         options: { temperature: 0 },
       },
       agent: { systemPrompt: join(directory, "custom.md"), maxSteps: 10 },
+      skills: { directories: [join(directory, "team-skills")], mode: "none" },
       mcpServers: {
         example: {
           transport: "stdio",

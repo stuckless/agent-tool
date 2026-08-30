@@ -1,6 +1,6 @@
 # agent-tool
 
-A small, transparent agent runtime for Node.js. Phase 3 adds MCP stdio-server tools to the compact tool-calling loop.
+A small, transparent agent runtime for Node.js. Phase 4 adds simple Markdown skills to the compact tool-calling loop.
 
 ## Requirements
 
@@ -39,6 +39,10 @@ Or create `agent.config.json` in the project directory:
   "agent": {
     "systemPrompt": "./prompts/minimal.md"
   },
+  "skills": {
+    "directories": ["./skills"],
+    "mode": "all"
+  },
   "mcpServers": {
     "example": {
       "transport": "stdio",
@@ -57,6 +61,34 @@ Or create `agent.config.json` in the project directory:
 ```
 
 `AGENT_OLLAMA_URL` overrides the configured Ollama base URL, and `AGENT_MODEL` or `--model` override the configured model. Use `--config <path>` to load a different JSON config file or `--prompt <path>` to override the system prompt for one run.
+
+### Skills
+
+Skills are Markdown instruction files, not executable tools. The runtime recursively discovers `SKILL.md` files below each configured `skills.directories` path. Each file needs YAML frontmatter with `name` and `description`; `tags` is optional. Its Markdown body is placed into the system context inside visible `<skill name="...">` boundaries. The user prompt is sent unchanged.
+
+The included [work-orders skill](skills/work-orders/SKILL.md) is a small example:
+
+```markdown
+---
+name: work-orders
+description: Guidance for answering work-order questions.
+tags:
+  - maintenance
+---
+
+# Work Orders
+
+Use authoritative tools for current work-order data.
+```
+
+By default, `skills.mode` is `all`; use `none` to load no skills. Select specific skills with repeatable `--skill` options:
+
+```bash
+AGENT_MODEL="your-local-model" npm run dev -- --skills none "Explain a work order"
+AGENT_MODEL="your-local-model" npm run dev -- --skill work-orders "Explain a work order"
+```
+
+An explicit `--skill` selection overrides the configured mode. `--skills all` is mutually exclusive with `--skill`; `--skills none --skill work-orders` is allowed and loads only `work-orders`.
 
 Reasoning is configured separately from generic model options. Use `--reasoning default|off|on|low|medium|high|max` for a one-run override. The Ollama adapter maps these values to its `think` request field. Provider-exposed thinking is preserved as opaque model state but is not shown in normal output and never controls runtime behavior.
 
@@ -100,4 +132,4 @@ npm run typecheck
 npm run build
 ```
 
-Later phases will add skills, CLI trace modes, and evaluations.
+Later phases will add CLI trace modes and evaluations. A live-model check that enabling a skill changes tool selection or answer behavior has not been performed; normal tests use only deterministic fake components.

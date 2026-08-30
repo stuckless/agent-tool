@@ -127,6 +127,38 @@ Delivered after Phase 3 completion:
 
 The compiled demo server was directly verified for tool discovery and a `lookup_demo_record` call. A live-model tool-selection run remains intentionally unperformed and is left for manual testing with the configured Ollama model.
 
-## Next Phase
+## Phase 4 — Skills, Simple Loading
 
-Phase 4 — Skills, simple loading.
+**Status:** Complete and verified deterministically.
+
+Delivered:
+
+- recursive discovery of configured `skills/**/SKILL.md` files
+- compact YAML-frontmatter parsing for required `name` and `description`, optional list-style or inline `tags`, and Markdown instruction bodies
+- fail-fast skill validation for unreadable or malformed files, missing required metadata/body, duplicate names, and unknown explicit selections
+- `skills.directories` and `skills.mode` (`all` or `none`) configuration, with `./skills` and `all` as defaults
+- repeatable `--skill <name>` selection and `--skills all|none` CLI control
+- visible selected-skill boundaries injected after the base system prompt, leaving the user prompt and the existing agent/MCP/tool flow unchanged
+- a safe sample `skills/work-orders/SKILL.md`
+
+Deterministic verification completed:
+
+```text
+npm test          # 25 tests passed; 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+```
+
+The new tests cover discovery, frontmatter/body parsing, optional tags, malformed files, duplicate names, all/none/explicit selection, unknown names, and exact system-context construction. Normal tests use no Ollama, network connection, or production MCP server.
+
+CLI demonstration completed:
+
+```text
+npm run dev -- --help
+```
+
+The help output now advertises `--skill` and `--skills`. No live Ollama run was performed to observe a model changing its tool selection or final answer when a skill is enabled versus disabled; that remains an optional manual acceptance check. The existing opt-in local stdio MCP test remains separate from normal verification.
+
+## Regroup Point
+
+Phase 4 is complete. Stop here before Phase 5 trace modes.

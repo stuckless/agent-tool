@@ -13,6 +13,8 @@ import { loadSystemPrompt } from "./prompts/loader.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { createTestTools } from "./tools/test-tools.js";
 import { McpManager } from "./mcp/manager.js";
+import { buildSystemPrompt } from "./skills/context.js";
+import { loadSkills, selectSkills } from "./skills/loader.js";
 
 export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const arguments_ = await yargs(argv)
@@ -21,6 +23,8 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     .option("config", { type: "string", description: "Path to a JSON configuration file." })
     .option("model", { type: "string", description: "Override the configured Ollama model." })
     .option("prompt", { type: "string", description: "Override the configured system prompt path." })
+    .option("skill", { type: "string", array: true, nargs: 1, description: "Load one named skill; repeatable." })
+    .option("skills", { choices: ["all", "none"] as const, description: "Load all skills or no skills." })
     .option("reasoning", {
       choices: ["default", "off", "on", "low", "medium", "high", "max"] as const,
       description: "Override reasoning mode or effort.",
@@ -32,12 +36,19 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     .parse();
 
   const prompt = arguments_._.map(String).join(" ");
+  const requestedSkillNames = arguments_.skill ?? [];
   const config = await loadConfig({
     configPath: arguments_.config,
     modelName: arguments_.model,
     reasoning: arguments_.reasoning ? parseReasoningOption(arguments_.reasoning) : undefined,
   });
-  const systemPrompt = await loadSystemPrompt(arguments_.prompt ? resolve(arguments_.prompt) : config.agent.systemPrompt);
+  if (requestedSkillNames.length > 0 && arguments_.skills === "all") {
+    throw new ConfigError("--skill cannot be combined with --skills all.");
+  }
+  const basePrompt = await loadSystemPrompt(arguments_.prompt ? resolve(arguments_.prompt) : config.agent.systemPrompt);
+  const availableSkills = await loadSkills(config.skills.directories);
+  const selectedSkills = selectSkills(availableSkills, arguments_.skills ?? config.skills.mode, requestedSkillNames);
+  const systemPrompt = buildSystemPrompt(basePrompt, selectedSkills);
   const model = new OllamaProvider({
     baseUrl: config.model.baseUrl,
     model: config.model.name,
