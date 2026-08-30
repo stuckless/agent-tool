@@ -16,6 +16,7 @@ describe("loadConfig", () => {
         model: {
           name: "from-file",
           baseUrl: "http://localhost:11434/",
+          reasoning: { mode: "enabled" },
           options: { temperature: 0 },
         },
         agent: { systemPrompt: "./custom.md" },
@@ -32,6 +33,7 @@ describe("loadConfig", () => {
         provider: "ollama",
         name: "from-environment",
         baseUrl: "http://ollama.test:11434",
+        reasoning: { mode: "enabled" },
         options: { temperature: 0 },
       },
       agent: { systemPrompt: join(directory, "custom.md") },

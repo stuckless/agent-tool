@@ -17,7 +17,7 @@ Implement this project as a small educational agent runtime. The goal is clarity
 
 ## Implementation Order
 
-Follow `03-IMPLEMENTATION-PHASES.md` in order.
+Follow `03-IMPLEMENTATION-PHASES.md` in order. Read `12-REASONING-THINKING.md` before implementing Phases 1, 2, 5, or 6.
 
 At the end of each phase:
 
@@ -37,6 +37,9 @@ Do not move to the next phase with failing tests.
 - Normalize MCP tools before registering them.
 - Treat skills as instruction content, not executable capabilities.
 - Do not make runtime correctness depend on model chain-of-thought/reasoning text.
+- Treat reasoning configuration as a first-class model setting, not an arbitrary prompt instruction.
+- Preserve provider-exposed assistant reasoning/state across tool turns when the provider requires replay of the complete assistant message.
+- Hide provider-exposed thinking text from normal traces; show it only via an explicit debugging option.
 - Tool errors should be visible to the model in a safe normalized form where recovery is possible.
 - Never expose secrets in traces or model-visible error messages.
 

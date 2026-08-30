@@ -11,6 +11,7 @@ A run receives:
 - loaded skill instructions
 - normalized available tools
 - model provider
+- reasoning configuration
 - model options
 - maximum steps
 - tracer
@@ -47,7 +48,8 @@ for step in 1..maxSteps:
 
     trace(model response)
 
-    append assistant response to messages
+    append the complete normalized assistant message to messages
+    (content + tool calls + provider-exposed reasoning/state when present)
 
     if response has no tool calls:
         return final response
@@ -132,17 +134,32 @@ Handle SIGINT/SIGTERM so that:
 - child stdio MCP processes are terminated
 - trace output is flushed
 
-## No Chain-of-Thought Dependency
+## Reasoning/Thinking Preservation Without Dependency
 
-The implementation must not require hidden reasoning text.
+The implementation must not require reasoning text for runtime correctness.
 
-Agent behavior should be understood through:
+However, if a provider exposes reasoning/state as part of an assistant turn, preserve the complete normalized assistant message before appending tool results. This is important for provider-correct multi-turn tool use.
+
+The runtime must **not** do this:
+
+```ts
+if (response.reasoning?.text?.includes("call another tool")) {
+  // ...
+}
+```
+
+It must react only to structured outputs such as `toolCalls` or the absence of tool calls.
+
+Agent behavior should primarily be understood through:
 
 - messages sent
+- configured reasoning mode/effort
 - tools available
 - tool calls selected
 - arguments selected
 - tool results
 - final outputs
 
-If a model/provider exposes optional reasoning metadata, treat it as provider-specific diagnostic data and do not make runtime correctness depend on it.
+Provider-exposed thinking is optional diagnostic data. Normal traces should record presence/size but hide text unless an explicit debug option enables it.
+
+See `12-REASONING-THINKING.md`.

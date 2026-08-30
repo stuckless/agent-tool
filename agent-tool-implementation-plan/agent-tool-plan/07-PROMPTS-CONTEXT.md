@@ -40,6 +40,8 @@ It should cover principles such as:
 
 Do not over-engineer persona or prose style.
 
+Do not instruct the model to "show chain of thought", "think aloud", or emit reasoning prose. Reasoning effort belongs in model/provider configuration, while the system prompt specifies observable behavior. This makes prompt comparisons fair across models that do and do not expose reasoning traces.
+
 ## Investigative Prompt
 
 A second prompt should explicitly instruct the agent to:
@@ -109,6 +111,8 @@ Useful trace fields:
 - tool schema bytes
 - tool result bytes
 - input/output token usage from provider
+- configured reasoning mode/effort
+- reasoning token/count metadata if the provider supplies it
 
 This is important for later experiments with many tools/skills.
 
@@ -138,6 +142,10 @@ Same everything else, altered description text.
 
 Measure whether a large catalog harms selection.
 
-### Experiment E — Local vs frontier model
+### Experiment E — Reasoning effort
 
-Only after the rest of the harness is controlled.
+Same model, prompt, tools, skills, and question; vary reasoning configuration only.
+
+### Experiment F — Local vs frontier model
+
+Only after the rest of the harness is controlled. Use comparable reasoning settings when possible and record differences explicitly.

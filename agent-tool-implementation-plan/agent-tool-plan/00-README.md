@@ -1,8 +1,12 @@
 # Agent Tool — Implementation Plan
 
+## Plan Revision
+
+Revision 2 adds first-class reasoning/thinking support across the model contract, Ollama adapter, agent loop, tracing, configuration, tests, and eval strategy. See `12-REASONING-THINKING.md`.
+
 This directory is a handoff package for implementing a small, transparent, reusable agent runtime for Node.js.
 
-The project is intentionally **not** based on LangChain, LangGraph, or another agent framework. The goal is to expose the mechanics of an agent clearly enough that a developer can understand and modify every layer: system prompts, skills, tools, MCP, model calls, the agent loop, tracing, and evaluations.
+The project is intentionally **not** based on LangChain, LangGraph, or another agent framework. The goal is to expose the mechanics of an agent clearly enough that a developer can understand and modify every layer: system prompts, skills, tools, MCP, model calls, reasoning/thinking modes, the agent loop, tracing, and evaluations.
 
 ## Primary Goal
 
@@ -51,6 +55,7 @@ See `01-DECISIONS.md` for details.
 - `09-CLI-CONFIG.md` — CLI contract and configuration format.
 - `10-TESTING.md` — unit/integration testing strategy.
 - `11-ROADMAP.md` — deliberately deferred capabilities and experiments.
+- `12-REASONING-THINKING.md` — reasoning configuration, provider-exposed thinking, tool-loop preservation, tracing, and eval guidance.
 - `AGENTS.md` — implementation guardrails for the coding assistant.
 
 ## Target Repository Shape
@@ -125,4 +130,4 @@ npm link
 agent-tool "how many open work orders are in bedford"
 ```
 
-The trace should make it obvious which tools were offered, which tool was called, its arguments, the summarized result, and when the model decided it had enough evidence to answer.
+The trace should make it obvious which tools were offered, which tool was called, its arguments, the summarized result, and when the model decided it had enough evidence to answer. Reasoning mode should be visible as run metadata; provider-exposed thinking text remains hidden unless explicitly requested.

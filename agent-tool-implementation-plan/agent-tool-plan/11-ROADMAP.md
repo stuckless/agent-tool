@@ -2,7 +2,15 @@
 
 This file lists useful directions after the transparent core runtime works. None are required for the first implementation.
 
-## 1. Dynamic Skill Loading
+## 1. Reasoning-Effort Baseline
+
+Before introducing sophisticated orchestration, run the same eval corpus against the chosen local model under supported reasoning modes. For GPT-OSS, compare at least low/medium/high.
+
+Measure quality, tool selection, number of tool calls, latency, and usage. Establish this baseline before attributing failures to the agent prompt or model architecture.
+
+Do not score reasoning prose itself; score observable outcomes.
+
+## 2. Dynamic Skill Loading
 
 Compare:
 
@@ -12,7 +20,7 @@ Compare:
 
 Measure quality and context size.
 
-## 2. Dynamic Tool Discovery
+## 3. Dynamic Tool Discovery
 
 When MCP servers expose many tools, compare:
 
@@ -24,7 +32,7 @@ When MCP servers expose many tools, compare:
 
 Measure wrong-tool rate and input token usage.
 
-## 3. Tool Description Overrides
+## 4. Tool Description Overrides
 
 Allow local metadata to improve a poorly described MCP tool without changing the MCP server.
 
@@ -39,7 +47,7 @@ filters, pagination, and result semantics.
 
 This directly tests how much tool guidance affects model performance.
 
-## 4. Verification Pass
+## 5. Verification Pass
 
 Experiment with an optional post-answer verification step, but do not make it default until evals show benefit.
 
@@ -51,7 +59,7 @@ Possible behavior:
 
 Avoid generic "reflect until satisfied" loops.
 
-## 5. Retry Policy
+## 6. Retry Policy
 
 Distinguish:
 
@@ -61,7 +69,7 @@ Distinguish:
 
 Never blindly retry every failure.
 
-## 6. Result Pagination and Large Data
+## 7. Result Pagination and Large Data
 
 Add runtime patterns for:
 
@@ -73,7 +81,7 @@ Add runtime patterns for:
 
 Skills may contain domain-specific pagination rules.
 
-## 7. Read/Write Safety
+## 8. Read/Write Safety
 
 Before production use with mutating tools, add:
 
@@ -83,7 +91,7 @@ Before production use with mutating tools, add:
 - MCP annotation support
 - tool allow/deny profiles
 
-## 8. Persistent Sessions
+## 9. Persistent Sessions
 
 Possible later CLI:
 
@@ -93,7 +101,7 @@ agent-tool chat
 
 Do not add until single-run behavior is well understood.
 
-## 9. Frontend/API Embedding
+## 10. Frontend/API Embedding
 
 Because the core API is reusable, later expose it through:
 
@@ -104,7 +112,7 @@ Because the core API is reusable, later expose it through:
 
 Keep those as hosts around the same runtime rather than forks of the agent logic.
 
-## 10. Model Routing
+## 11. Model Routing
 
 Once multiple providers exist, test routing such as:
 
@@ -118,7 +126,7 @@ frontier model fallback
 
 Do not implement routing based on vibes. Define measurable escalation conditions.
 
-## 11. Benchmarking Questions
+## 12. Benchmarking Questions
 
 Build a real internal eval corpus from user questions, especially failures from the existing assistant.
 

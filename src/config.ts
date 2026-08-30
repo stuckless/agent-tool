@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 import { z } from "zod";
 
+import type { ReasoningConfig } from "./model/types.js";
+
 const defaultOllamaBaseUrl = "http://localhost:11434";
 const defaultSystemPrompt = "./prompts/minimal.md";
 
@@ -12,9 +14,17 @@ const rawConfigSchema = z.object({
       provider: z.literal("ollama").default("ollama"),
       baseUrl: z.string().url().optional(),
       name: z.string().min(1).optional(),
+      reasoning: z
+        .discriminatedUnion("mode", [
+          z.object({ mode: z.literal("provider-default") }),
+          z.object({ mode: z.literal("disabled") }),
+          z.object({ mode: z.literal("enabled") }),
+          z.object({ mode: z.literal("effort"), effort: z.enum(["low", "medium", "high", "max"]) }),
+        ])
+        .default({ mode: "provider-default" }),
       options: z.record(z.string(), z.unknown()).default({}),
     })
-    .default({ provider: "ollama", options: {} }),
+    .default({ provider: "ollama", reasoning: { mode: "provider-default" }, options: {} }),
   agent: z
     .object({
       systemPrompt: z.string().min(1).optional(),
@@ -27,6 +37,7 @@ export interface RuntimeConfig {
     provider: "ollama";
     baseUrl: string;
     name: string;
+    reasoning: ReasoningConfig;
     options: Record<string, unknown>;
   };
   agent: {
@@ -38,6 +49,7 @@ export interface LoadConfigOptions {
   cwd?: string;
   configPath?: string;
   modelName?: string;
+  reasoning?: ReasoningConfig;
   environment?: NodeJS.ProcessEnv;
 }
 
@@ -75,6 +87,7 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Runti
       provider: "ollama",
       baseUrl: baseUrl.replace(/\/$/, ""),
       name: modelName,
+      reasoning: options.reasoning ?? parsedConfig.data.model.reasoning,
       options: parsedConfig.data.model.options,
     },
     agent: {

@@ -31,6 +31,8 @@ Tests should cover:
 - tool throws
 - model observes tool error and recovers
 - max steps reached
+- assistant reasoning/state is preserved before tool results when provided
+- runtime behavior is identical whether optional reasoning text is present or absent for the same structured tool calls
 
 ## Tool Registry Tests
 
@@ -81,6 +83,20 @@ Test:
 
 Do not rely only on mocked SDK calls; one real local protocol integration test is valuable.
 
+## Ollama Provider Reasoning Tests
+
+Test without a live model where possible:
+
+- provider-default omits `think`
+- disabled maps to `think: false`
+- enabled maps to `think: true`
+- effort maps to the configured string level
+- `message.thinking` is normalized when returned
+- response content remains distinct from reasoning text
+- replay of a normalized assistant message retains provider-exposed reasoning/state required by Ollama
+
+Do not make tests assert the semantic quality of thinking text.
+
 ## Ollama Integration Tests
 
 Keep live tests excluded from normal `npm test`.
@@ -105,7 +121,7 @@ Provide an optional smoke setup using:
 
 Prompt should require actual tool execution.
 
-The goal is not model-quality scoring; it is verifying the whole wiring works.
+The goal is not model-quality scoring; it is verifying the whole wiring works. When the selected smoke-test model supports thinking, include at least one optional run that verifies configured reasoning mode does not break tool calling.
 
 ## Eval Tests vs Unit Tests
 

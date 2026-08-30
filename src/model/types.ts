@@ -1,17 +1,34 @@
 export type MessageRole = "system" | "user" | "assistant";
 
+export type ReasoningConfig =
+  | { mode: "provider-default" }
+  | { mode: "disabled" }
+  | { mode: "enabled" }
+  | { mode: "effort"; effort: "low" | "medium" | "high" | "max" };
+
+export interface ReasoningPayload {
+  text?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface ModelMessage {
   role: MessageRole;
   content: string;
+  reasoning?: ReasoningPayload;
+}
+
+export interface AssistantMessage extends ModelMessage {
+  role: "assistant";
 }
 
 export interface ModelRequest {
   messages: ModelMessage[];
+  reasoning: ReasoningConfig;
   options: Record<string, unknown>;
 }
 
 export interface ModelResponse {
-  text: string;
+  message: AssistantMessage;
   finishReason?: string;
   usage?: {
     promptTokens?: number;

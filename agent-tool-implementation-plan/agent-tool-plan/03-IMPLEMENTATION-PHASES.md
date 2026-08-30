@@ -55,6 +55,8 @@ Support configurable:
 - base URL
 - model
 - temperature/options supported by the chosen Ollama endpoint
+- explicit reasoning configuration (`provider-default`, enabled/disabled, or effort level)
+- normalization of provider-exposed `message.thinking` when present
 
 Acceptance:
 
@@ -69,6 +71,8 @@ Tests:
 - provider request normalization
 - malformed configuration
 - provider HTTP error handling
+- reasoning configuration → Ollama `think` request mapping
+- normalization of `message.thinking`
 
 ---
 
@@ -91,6 +95,7 @@ Implement:
 - tool result messages
 - loop continuation
 - max step protection
+- preservation of the complete assistant message across tool turns, including provider-exposed reasoning/state
 
 Acceptance:
 
@@ -101,7 +106,7 @@ A prompt that requires a test tool causes:
 3. tool result returned to model
 4. final answer
 
-The trace must make that sequence visible.
+The trace must make that sequence visible. Agent control flow must not inspect reasoning text.
 
 ---
 
@@ -192,7 +197,15 @@ Tools: maximo.workorders_count, maximo.workorders_search
     final → There are 47 ...
 ```
 
-Trace output must never depend on hidden chain-of-thought.
+Normal trace output must never depend on chain-of-thought. It should show configured reasoning mode plus whether provider-exposed thinking was present, without dumping its text by default.
+
+Add an explicit debugging option such as:
+
+```bash
+agent-tool --trace --show-thinking "..."
+```
+
+It may display only reasoning text actually exposed by the provider. Enabling it must not change model/agent behavior.
 
 ---
 
@@ -217,10 +230,11 @@ Start with deterministic assertions:
 - forbidden tool not called
 - maximum tool call count
 - output contains expected facts/phrases where appropriate
+- reasoning configuration used is recorded with the run
 
 Do not begin with LLM-as-a-judge scoring.
 
-Store results as JSON for comparison.
+Store results as JSON for comparison. The same eval corpus must be runnable against different reasoning modes/effort levels without changing prompts/tools/skills.
 
 ---
 
@@ -279,6 +293,7 @@ same skills
 same tool descriptions
 same MCP servers
 same eval assertions
+same reasoning setting where comparable
 DIFFERENT model/provider
 ```
 
@@ -291,3 +306,8 @@ Potential providers later:
 - generic OpenAI-compatible API
 
 Do not change agent behavior inside provider adapters.
+
+
+## Cross-Cutting Requirement — Reasoning/Thinking
+
+Reasoning support begins in Phase 1 and remains a cross-cutting concern through the agent loop, traces, and evals. Read `12-REASONING-THINKING.md` before implementing Phases 1, 2, 5, or 6. Do not defer reasoning to a late add-on because preserving assistant reasoning/state across tool turns affects the provider/message contracts.

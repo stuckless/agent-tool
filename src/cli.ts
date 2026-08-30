@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 import { ConfigError, loadConfig } from "./config.js";
 import { OllamaProvider } from "./model/ollama.js";
+import type { ReasoningConfig } from "./model/types.js";
 import { loadSystemPrompt } from "./prompts/loader.js";
 
 export async function runCli(argv = hideBin(process.argv)): Promise<void> {
@@ -16,6 +17,10 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     .option("config", { type: "string", description: "Path to a JSON configuration file." })
     .option("model", { type: "string", description: "Override the configured Ollama model." })
     .option("prompt", { type: "string", description: "Override the configured system prompt path." })
+    .option("reasoning", {
+      choices: ["default", "off", "on", "low", "medium", "high", "max"] as const,
+      description: "Override reasoning mode or effort.",
+    })
     .demandCommand(1, "Provide a prompt.")
     .strict()
     .help()
@@ -25,6 +30,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const config = await loadConfig({
     configPath: arguments_.config,
     modelName: arguments_.model,
+    reasoning: arguments_.reasoning ? parseReasoningOption(arguments_.reasoning) : undefined,
   });
   const systemPrompt = await loadSystemPrompt(arguments_.prompt ? resolve(arguments_.prompt) : config.agent.systemPrompt);
   const model = new OllamaProvider({
@@ -36,10 +42,24 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
       { role: "system", content: systemPrompt },
       { role: "user", content: prompt },
     ],
+    reasoning: config.model.reasoning,
     options: config.model.options,
   });
 
-  console.log(response.text);
+  console.log(response.message.content);
+}
+
+function parseReasoningOption(value: "default" | "off" | "on" | "low" | "medium" | "high" | "max"): ReasoningConfig {
+  if (value === "default") {
+    return { mode: "provider-default" };
+  }
+  if (value === "off") {
+    return { mode: "disabled" };
+  }
+  if (value === "on") {
+    return { mode: "enabled" };
+  }
+  return { mode: "effort", effort: value };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

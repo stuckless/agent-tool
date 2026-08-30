@@ -23,6 +23,8 @@ V1/V2:
 --trace                   human-readable trace
 --trace-json              JSON trace
 --max-steps <n>          maximum model turns
+--reasoning <mode>        default|off|on|low|medium|high|max
+--show-thinking           with trace, show provider-exposed thinking text
 --json                    emit final result as JSON
 --help
 --version
@@ -48,6 +50,10 @@ Do not search many implicit home-directory locations in V1.
     "provider": "ollama",
     "baseUrl": "http://localhost:11434",
     "name": "gpt-oss:120b",
+    "reasoning": {
+      "mode": "effort",
+      "effort": "high"
+    },
     "options": {
       "temperature": 0
     }
@@ -72,12 +78,24 @@ Do not search many implicit home-directory locations in V1.
     "deny": []
   },
   "trace": {
-    "enabled": false
+    "enabled": false,
+    "showThinking": false
   }
 }
 ```
 
 Model names are examples only and must not be hard-coded as defaults if the developer's local Ollama setup differs.
+
+Reasoning is intentionally separate from generic `options`. Map CLI values as follows:
+
+```text
+default -> { mode: "provider-default" }
+off     -> { mode: "disabled" }
+on      -> { mode: "enabled" }
+low..max -> { mode: "effort", effort: <value> }
+```
+
+For Ollama GPT-OSS, use effort `low`, `medium`, or `high`; do not use boolean examples. The adapter should surface incompatible configurations clearly rather than silently changing the user's request. See `12-REASONING-THINKING.md`.
 
 ## Environment Variables
 

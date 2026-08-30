@@ -27,6 +27,8 @@ Run
   prompt: investigative
   skills: work-orders
   tools: 8
+  reasoning: high
+  thinking exposed: yes (text hidden)
 
 Step 1
   model → tool call
@@ -43,7 +45,9 @@ Step 2
 There are 47 open work orders in Bedford.
 ```
 
-Do not print private model reasoning or require reasoning traces.
+Do not require reasoning traces for correctness. Provider-exposed thinking text is hidden by default. An explicit `--show-thinking` debug flag may display reasoning text returned by the provider, but it must not alter agent behavior.
+
+Normal traces should record the configured reasoning mode and, when available, whether thinking was exposed plus its size/token metadata.
 
 ## JSON Trace
 
@@ -57,6 +61,7 @@ startedAt
 completedAt
 durationMs
 model
+reasoningConfig
 modelOptions
 systemPromptName
 systemPromptHash
@@ -65,11 +70,12 @@ tools[]
 steps[]
 finalAnswer
 usage
+reasoningMetadata
 status
 error
 ```
 
-Each step should include observable events only.
+Each step should include observable events. Reasoning text is omitted by default; metadata such as `exposed`, character count, or provider-supplied reasoning token counts may be retained.
 
 ## Tool Trace
 
@@ -83,6 +89,16 @@ For each call record:
 - success/failure
 - result size
 - optionally a bounded result preview
+
+## Explicit Thinking Trace
+
+Support an opt-in debug mode such as:
+
+```bash
+agent-tool --trace --show-thinking "..."
+```
+
+Only print text the provider actually exposes. Never fabricate or infer hidden reasoning. Apply the same redaction controls used for other trace content. JSON traces should omit reasoning text unless explicitly enabled.
 
 ## Redaction
 
@@ -130,6 +146,8 @@ Later:
 - JSONPath-like result assertions
 - latency thresholds
 - token thresholds
+- reasoning configuration assertions/filters
+- provider-supplied reasoning token/count metrics when available
 - custom JS validators
 - human scoring
 - optional LLM-as-judge
@@ -143,10 +161,13 @@ The eval runner should make it possible to build comparisons like:
 oss + minimal            62%        71%          2.7
 oss + investigative      79%        88%          2.2
 oss + skill              86%        94%          1.8
+oss/high + skill          90%        96%          1.7
 frontier + same agent    93%        97%          1.5
 ```
 
 The exact reporting format can evolve after JSON result storage works.
+
+Reasoning configuration must be treated as a controlled comparison dimension. For example, run the same GPT-OSS eval set at low, medium, and high effort, then compare quality, tool-call count, latency, and token usage.
 
 ## Repetition
 

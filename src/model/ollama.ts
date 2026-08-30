@@ -1,4 +1,4 @@
-import type { ModelProvider, ModelRequest, ModelResponse } from "./types.js";
+import type { ModelMessage, ModelProvider, ModelRequest, ModelResponse, ReasoningConfig } from "./types.js";
 
 export interface OllamaProviderOptions {
   baseUrl: string;
@@ -9,6 +9,7 @@ export interface OllamaProviderOptions {
 interface OllamaChatResponse {
   message?: {
     content?: unknown;
+    thinking?: unknown;
   };
   done_reason?: unknown;
   prompt_eval_count?: unknown;
@@ -35,9 +36,10 @@ export class OllamaProvider implements ModelProvider {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           model: this.model,
-          messages: request.messages,
+          messages: request.messages.map(toOllamaMessage),
           options: request.options,
           stream: false,
+          ...toOllamaReasoning(request.reasoning),
         }),
       });
     } catch {
@@ -54,13 +56,38 @@ export class OllamaProvider implements ModelProvider {
     }
 
     return {
-      text: responseBody.message.content,
+      message: {
+        role: "assistant",
+        content: responseBody.message.content,
+        reasoning: typeof responseBody.message.thinking === "string" ? { text: responseBody.message.thinking } : undefined,
+      },
       finishReason: typeof responseBody.done_reason === "string" ? responseBody.done_reason : undefined,
       usage: {
         promptTokens: toNumber(responseBody.prompt_eval_count),
         completionTokens: toNumber(responseBody.eval_count),
       },
     };
+  }
+}
+
+function toOllamaMessage(message: ModelMessage): Record<string, unknown> {
+  return {
+    role: message.role,
+    content: message.content,
+    ...(message.reasoning?.text ? { thinking: message.reasoning.text } : {}),
+  };
+}
+
+function toOllamaReasoning(reasoning: ReasoningConfig): Record<string, boolean | string> {
+  switch (reasoning.mode) {
+    case "provider-default":
+      return {};
+    case "disabled":
+      return { think: false };
+    case "enabled":
+      return { think: true };
+    case "effort":
+      return { think: reasoning.effort };
   }
 }
 

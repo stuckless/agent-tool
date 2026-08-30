@@ -81,17 +81,24 @@ interface ModelProvider {
 
 - messages
 - tool definitions
-- model options
+- reasoning configuration
+- generic model options
 
 `ModelResponse` should normalize:
 
+- complete normalized assistant message
 - assistant text
+- provider-exposed reasoning metadata/text when available
 - tool calls
 - finish reason if available
 - usage metadata if available
 - provider metadata only when useful for diagnostics
 
 Do not let Ollama response objects become the runtime's domain model.
+
+Reasoning must be a first-class but provider-neutral concept. The provider adapter maps the generic reasoning configuration to Ollama's `think` field and maps `message.thinking` back into an optional normalized reasoning payload.
+
+When the model requests tools, preserve the complete normalized assistant message, including any provider-exposed reasoning/state, before appending tool results. The `Agent` treats reasoning as opaque and never parses it for control flow. See `12-REASONING-THINKING.md`.
 
 ## `ToolRegistry`
 
@@ -170,7 +177,7 @@ Conceptual events:
 type TraceEvent =
   | { type: "run.start"; ... }
   | { type: "model.request"; ... }
-  | { type: "model.response"; ... }
+  | { type: "model.response"; reasoningPresent?: boolean; reasoningChars?: number; ... }
   | { type: "tool.call"; ... }
   | { type: "tool.result"; ... }
   | { type: "run.complete"; ... }
