@@ -28,6 +28,7 @@ const rawConfigSchema = z.object({
   agent: z
     .object({
       systemPrompt: z.string().min(1).optional(),
+      maxSteps: z.number().int().positive().optional(),
     })
     .default({}),
 });
@@ -42,6 +43,7 @@ export interface RuntimeConfig {
   };
   agent: {
     systemPrompt: string;
+    maxSteps: number;
   };
 }
 
@@ -92,6 +94,7 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Runti
     },
     agent: {
       systemPrompt: resolve(cwd, parsedConfig.data.agent.systemPrompt ?? defaultSystemPrompt),
+      maxSteps: parsedConfig.data.agent.maxSteps ?? 10,
     },
   };
 }

@@ -1,4 +1,13 @@
-import type { ModelMessage, ModelProvider, ModelRequest, ModelResponse, ReasoningConfig } from "./types.js";
+import type {
+  AssistantMessage,
+  ConversationMessage,
+  ModelProvider,
+  ModelRequest,
+  ModelResponse,
+  ModelToolCall,
+  ModelToolDefinition,
+  ReasoningConfig,
+} from "./types.js";
 
 export interface OllamaProviderOptions {
   baseUrl: string;
@@ -10,6 +19,7 @@ interface OllamaChatResponse {
   message?: {
     content?: unknown;
     thinking?: unknown;
+    tool_calls?: unknown;
   };
   done_reason?: unknown;
   prompt_eval_count?: unknown;
@@ -39,6 +49,7 @@ export class OllamaProvider implements ModelProvider {
           messages: request.messages.map(toOllamaMessage),
           options: request.options,
           stream: false,
+          ...(request.tools.length > 0 ? { tools: request.tools.map(toOllamaTool) } : {}),
           ...toOllamaReasoning(request.reasoning),
         }),
       });
@@ -59,6 +70,7 @@ export class OllamaProvider implements ModelProvider {
       message: {
         role: "assistant",
         content: responseBody.message.content,
+        toolCalls: parseToolCalls(responseBody.message.tool_calls),
         reasoning: typeof responseBody.message.thinking === "string" ? { text: responseBody.message.thinking } : undefined,
       },
       finishReason: typeof responseBody.done_reason === "string" ? responseBody.done_reason : undefined,
@@ -70,12 +82,73 @@ export class OllamaProvider implements ModelProvider {
   }
 }
 
-function toOllamaMessage(message: ModelMessage): Record<string, unknown> {
+function toOllamaMessage(message: ConversationMessage): Record<string, unknown> {
+  const assistantMessage = message.role === "assistant" ? (message as AssistantMessage) : undefined;
   return {
     role: message.role,
     content: message.content,
     ...(message.reasoning?.text ? { thinking: message.reasoning.text } : {}),
+    ...(assistantMessage?.toolCalls
+      ? {
+          tool_calls: assistantMessage.toolCalls.map((toolCall) => ({
+            function: { name: toolCall.name, arguments: toolCall.arguments },
+          })),
+        }
+      : {}),
   };
+}
+
+function toOllamaTool(tool: ModelToolDefinition): Record<string, unknown> {
+  return {
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    },
+  };
+}
+
+function parseToolCalls(value: unknown): ModelToolCall[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error("Ollama returned invalid tool calls.");
+  }
+
+  return value.map((toolCall, index) => {
+    if (!isRecord(toolCall) || !isRecord(toolCall.function) || typeof toolCall.function.name !== "string") {
+      throw new Error("Ollama returned invalid tool calls.");
+    }
+    const arguments_ = parseToolArguments(toolCall.function.arguments);
+    return {
+      id: typeof toolCall.id === "string" && toolCall.id.length > 0 ? toolCall.id : `ollama-call-${index + 1}`,
+      name: toolCall.function.name,
+      arguments: arguments_,
+    };
+  });
+}
+
+function parseToolArguments(value: unknown): Record<string, unknown> {
+  if (isRecord(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      if (isRecord(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // Report the same safe provider error below.
+    }
+  }
+  throw new Error("Ollama returned invalid tool call arguments.");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function toOllamaReasoning(reasoning: ReasoningConfig): Record<string, boolean | string> {

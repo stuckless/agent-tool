@@ -1,6 +1,6 @@
 # agent-tool
 
-A small, transparent agent runtime for Node.js. Phase 1 supports one Ollama chat request with a configurable system prompt; tools and the agent loop arrive in later phases.
+A small, transparent agent runtime for Node.js. Phase 2 adds a compact tool-calling loop backed by deterministic in-process test tools.
 
 ## Requirements
 
@@ -46,6 +46,8 @@ Or create `agent.config.json` in the project directory:
 
 Reasoning is configured separately from generic model options. Use `--reasoning default|off|on|low|medium|high|max` for a one-run override. The Ollama adapter maps these values to its `think` request field. Provider-exposed thinking is preserved as opaque model state but is not shown in normal output and never controls runtime behavior.
 
+The agent advertises two deterministic local tools in Phase 2: `echo` and `get_current_test_value`. When the model requests a tool, the runtime appends the complete normalized assistant turn (including provider-exposed reasoning/state), executes calls in their returned order, appends structured tool-result messages, and then asks the model to continue. `--max-steps <n>` limits model turns (default: 10); reaching the limit is an error, never a partial success.
+
 The package exposes an `agent-tool` executable after building and linking it locally:
 
 ```bash
@@ -62,4 +64,4 @@ npm run typecheck
 npm run build
 ```
 
-Later phases will add tool calling, skills, MCP tools, traces, and evaluations.
+Later phases will add MCP tools, skills, CLI trace modes, and evaluations.

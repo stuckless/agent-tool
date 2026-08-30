@@ -23,6 +23,7 @@ describe("OllamaProvider", () => {
 
     const response = await provider.chat({
       messages: [{ role: "user", content: "What is a work order?" }],
+      tools: [],
       reasoning: { mode: "provider-default" },
       options: { temperature: 0 },
     });
@@ -59,7 +60,7 @@ describe("OllamaProvider", () => {
     );
     const provider = new OllamaProvider({ baseUrl: "http://ollama.test", model: "test-model", fetch: fetchMock });
 
-    await provider.chat({ messages: [], reasoning, options: {} });
+    await provider.chat({ messages: [], tools: [], reasoning, options: {} });
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string) as Record<string, unknown>;
     expect(requestBody.think).toBe(expectedThink);
@@ -73,6 +74,7 @@ describe("OllamaProvider", () => {
 
     const firstResponse = await provider.chat({
       messages: [{ role: "user", content: "Inspect the record." }],
+      tools: [],
       reasoning: { mode: "enabled" },
       options: {},
     });
@@ -84,6 +86,7 @@ describe("OllamaProvider", () => {
     const replayProvider = new OllamaProvider({ baseUrl: "http://ollama.test", model: "test-model", fetch: replayFetch });
     await replayProvider.chat({
       messages: [firstResponse.message],
+      tools: [],
       reasoning: { mode: "provider-default" },
       options: {},
     });
@@ -96,6 +99,34 @@ describe("OllamaProvider", () => {
     });
   });
 
+  it("serializes tool definitions and normalizes native tool calls", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: {
+            content: "",
+            tool_calls: [{ function: { name: "echo", arguments: { value: "hello" } } }],
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    const provider = new OllamaProvider({ baseUrl: "http://ollama.test", model: "test-model", fetch: fetchMock });
+
+    const response = await provider.chat({
+      messages: [{ role: "user", content: "Echo hello." }],
+      tools: [{ name: "echo", description: "Echoes text.", inputSchema: { type: "object" } }],
+      reasoning: { mode: "provider-default" },
+      options: {},
+    });
+
+    const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string) as Record<string, unknown>;
+    expect(requestBody.tools).toEqual([
+      { type: "function", function: { name: "echo", description: "Echoes text.", parameters: { type: "object" } } },
+    ]);
+    expect(response.message.toolCalls).toEqual([{ id: "ollama-call-1", name: "echo", arguments: { value: "hello" } }]);
+  });
+
   it("reports HTTP failures without exposing a response body", async () => {
     const provider = new OllamaProvider({
       baseUrl: "http://ollama.test",
@@ -103,6 +134,6 @@ describe("OllamaProvider", () => {
       fetch: vi.fn().mockResolvedValue(new Response("sensitive server details", { status: 500 })),
     });
 
-    await expect(provider.chat({ messages: [], reasoning: { mode: "provider-default" }, options: {} })).rejects.toThrow("HTTP 500");
+    await expect(provider.chat({ messages: [], tools: [], reasoning: { mode: "provider-default" }, options: {} })).rejects.toThrow("HTTP 500");
   });
 });

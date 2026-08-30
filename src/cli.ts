@@ -6,9 +6,12 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { ConfigError, loadConfig } from "./config.js";
+import { Agent } from "./agent/agent.js";
 import { OllamaProvider } from "./model/ollama.js";
 import type { ReasoningConfig } from "./model/types.js";
 import { loadSystemPrompt } from "./prompts/loader.js";
+import { ToolRegistry } from "./tools/registry.js";
+import { createTestTools } from "./tools/test-tools.js";
 
 export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const arguments_ = await yargs(argv)
@@ -21,6 +24,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
       choices: ["default", "off", "on", "low", "medium", "high", "max"] as const,
       description: "Override reasoning mode or effort.",
     })
+    .option("max-steps", { type: "number", description: "Maximum model turns before the agent stops." })
     .demandCommand(1, "Provide a prompt.")
     .strict()
     .help()
@@ -37,16 +41,16 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     baseUrl: config.model.baseUrl,
     model: config.model.name,
   });
-  const response = await model.chat({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: prompt },
-    ],
+  const agent = new Agent({
+    model,
+    tools: new ToolRegistry(createTestTools()),
+    systemPrompt,
     reasoning: config.model.reasoning,
-    options: config.model.options,
+    modelOptions: config.model.options,
+    maxSteps: arguments_.maxSteps ?? config.agent.maxSteps,
   });
-
-  console.log(response.message.content);
+  const result = await agent.run(prompt);
+  console.log(result.answer);
 }
 
 function parseReasoningOption(value: "default" | "off" | "on" | "low" | "medium" | "high" | "max"): ReasoningConfig {

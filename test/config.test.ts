@@ -36,7 +36,7 @@ describe("loadConfig", () => {
         reasoning: { mode: "enabled" },
         options: { temperature: 0 },
       },
-      agent: { systemPrompt: join(directory, "custom.md") },
+      agent: { systemPrompt: join(directory, "custom.md"), maxSteps: 10 },
     });
   });
 

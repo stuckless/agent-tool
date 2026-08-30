@@ -1,4 +1,4 @@
-export type MessageRole = "system" | "user" | "assistant";
+export type MessageRole = "system" | "user" | "assistant" | "tool";
 
 export type ReasoningConfig =
   | { mode: "provider-default" }
@@ -11,6 +11,18 @@ export interface ReasoningPayload {
   metadata?: Record<string, unknown>;
 }
 
+export interface ModelToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+export interface ModelToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
 export interface ModelMessage {
   role: MessageRole;
   content: string;
@@ -19,10 +31,20 @@ export interface ModelMessage {
 
 export interface AssistantMessage extends ModelMessage {
   role: "assistant";
+  toolCalls?: ModelToolCall[];
 }
 
+export interface ToolResultMessage extends ModelMessage {
+  role: "tool";
+  toolCallId: string;
+  name: string;
+}
+
+export type ConversationMessage = ModelMessage | ToolResultMessage;
+
 export interface ModelRequest {
-  messages: ModelMessage[];
+  messages: ConversationMessage[];
+  tools: ModelToolDefinition[];
   reasoning: ReasoningConfig;
   options: Record<string, unknown>;
 }
