@@ -1,6 +1,6 @@
 # agent-tool
 
-A small, transparent agent runtime for Node.js. Phase 7 adds opt-in progressive skill disclosure to the compact tool-calling loop.
+A small, transparent agent runtime for Node.js. Phase 8 adds opt-in dynamic tool discovery to the compact tool-calling loop.
 
 ## Requirements
 
@@ -55,7 +55,11 @@ Or create `agent.config.json` in the project directory:
   },
   "tools": {
     "allow": ["example.*"],
-    "deny": ["example.delete"]
+    "deny": ["example.delete"],
+    "discovery": {
+      "mode": "search",
+      "initialAllow": ["example.read_status"]
+    }
   }
 }
 ```
@@ -144,7 +148,28 @@ It exposes only `demo.get_demo_status` and `demo.lookup_demo_record`; both are r
 AGENT_TEST_STDIO=1 npm run test:mcp-stdio
 ```
 
+Use [demo-tool-discovery.config.json](examples/demo-tool-discovery.config.json) to test Phase 8 with the same demo MCP server. It starts with only `runtime.search_tools` visible; search for `demo status` or `demo record` before calling a returned `demo.*` tool.
+
 `tools.allow` and `tools.deny` accept `*` wildcard patterns for MCP names. The default allows every discovered MCP tool; matching `deny` entries always win. Use this policy to keep unwanted or mutating MCP tools out of the model's available-tool list.
+
+### Dynamic tool discovery
+
+Tool filtering is disabled by default, so existing runs continue to send every registered local, MCP, and runtime tool to the model. To reduce initial context for a large catalog, set `tools.discovery.mode` to `search`. The initial context then contains only tools matched by `initialAllow`, plus runtime-owned tools such as `runtime.search_tools` and, for progressive skills, `runtime.load_skill`.
+
+`runtime.search_tools` takes a short capability query and returns up to eight matching registered tool names and descriptions. Returned tools become available on the next turn and are the only non-runtime tools it may call for the rest of that run. Names not initially allowed or returned from search receive a safe `ToolUnavailable` result; unknown names retain `UnknownTool`. Matching is deterministic keyword matching over tool names and descriptions, not RAG or embeddings.
+
+```json
+{
+  "tools": {
+    "discovery": {
+      "mode": "search",
+      "initialAllow": ["demo.get_demo_status"]
+    }
+  }
+}
+```
+
+Human and JSON traces record the complete registered catalog, the filtered initial context, and each search query with the tools it made available. Eval traces include those same observable events.
 
 The package exposes an `agent-tool` executable after building and linking it locally:
 
@@ -172,4 +197,4 @@ AGENT_MODEL="your-local-model" npm run dev:eval -- examples/demo-evals.json --ou
 
 Each case requires `id`, `prompt`, and an `expect` object with `requiredTools`, `forbiddenTools`, `maxToolCalls`, and `outputIncludes`. A run passes only when it completes, matches every tool/output assertion, stays under the call limit, and has no tool errors. The report records a SHA-256 prompt identity, selected skills, available tools, model turns and tool-call events, final completion/error status, and the configured model/reasoning metadata. It never uses provider-exposed thinking text to make eval decisions.
 
-The included [demo-evals.json](examples/demo-evals.json) is a format example; it needs a model that reliably includes `work order` and is not a deterministic model acceptance test. Deterministic normal tests use only fake models and local tools, including a Phase 7 eval that requires `runtime.load_skill`. No live Ollama eval, real MCP eval, or manual check that a skill changes live model behavior has been performed; those remain optional follow-up checks after Phase 7.
+The included [demo-evals.json](examples/demo-evals.json) is a format example; it needs a model that reliably includes `work order` and is not a deterministic model acceptance test. Deterministic normal tests use only fake models and local tools, including Phase 7 skill loading and Phase 8 search-then-tool evals. No live Ollama eval, real MCP eval, or manual check that a skill or tool-discovery setting changes live model behavior has been performed; those remain optional follow-up checks after Phase 8.

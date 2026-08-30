@@ -76,6 +76,12 @@ export class TraceRecorder implements AgentTracer {
       case "skill.load":
         this.runTrace.steps.push({ type: event.type, step: event.step, atMs, name: event.name, ok: event.ok, ...(event.alreadyLoaded === undefined ? {} : { alreadyLoaded: event.alreadyLoaded }) });
         return;
+      case "tool.catalog":
+        this.runTrace.steps.push({ type: event.type, step: 0, atMs, totalTools: event.totalTools, availableTools: event.availableTools, filtering: event.filtering });
+        return;
+      case "tool.discovery":
+        this.runTrace.steps.push({ type: event.type, step: event.step, atMs, query: this.redact(event.query), discoveredTools: event.discoveredTools });
+        return;
       case "model.request":
         this.runTrace.steps.push({ type: event.type, step: event.step, atMs });
         return;
@@ -166,6 +172,8 @@ function formatEvent(event: TraceEventRecord): string[] {
   const heading = `\nStep ${event.step}`;
   if (event.type === "skill.catalog") return ["\nSkill catalog", ...((event.skills as Array<{ name: string; description: string }>).map((skill) => `  ${skill.name}: ${skill.description}`))];
   if (event.type === "skill.load") return [heading, `  skill → ${event.ok ? "loaded" : "failed"}: ${event.name}${event.alreadyLoaded ? " (already loaded)" : ""}`];
+  if (event.type === "tool.catalog") return ["\nTool catalog", `  filtering: ${event.filtering ? "enabled" : "disabled"}`, `  available: ${(event.availableTools as string[]).join(", ") || "none"}`, `  total registered: ${event.totalTools}`];
+  if (event.type === "tool.discovery") return [heading, `  tool search: ${event.query}`, `  discovered: ${(event.discoveredTools as string[]).join(", ") || "none"}`];
   if (event.type === "model.request") return [heading, "  model → request"];
   if (event.type === "model.response") {
     const reasoning = event.reasoning as { exposed: boolean; characters?: number; text?: string };

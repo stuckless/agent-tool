@@ -52,8 +52,12 @@ const rawConfigSchema = z.object({
     .object({
       allow: z.array(z.string().min(1)).default(["*"]),
       deny: z.array(z.string().min(1)).default([]),
+      discovery: z.object({
+        mode: z.enum(["disabled", "search"]).default("disabled"),
+        initialAllow: z.array(z.string().min(1)).default([]),
+      }).default({ mode: "disabled", initialAllow: [] }),
     })
-    .default({ allow: ["*"], deny: [] }),
+    .default({ allow: ["*"], deny: [], discovery: { mode: "disabled", initialAllow: [] } }),
 });
 
 export interface McpStdioServerConfig {
@@ -66,6 +70,10 @@ export interface McpStdioServerConfig {
 export interface ToolPolicy {
   allow: string[];
   deny: string[];
+  discovery: {
+    mode: "disabled" | "search";
+    initialAllow: string[];
+  };
 }
 
 export interface SkillsConfig {

@@ -19,6 +19,8 @@ import { loadSkills, selectSkills } from "./skills/loader.js";
 import { createLoadSkillTool } from "./skills/runtime.js";
 import { ToolRegistry } from "./tools/registry.js";
 import { createTestTools } from "./tools/test-tools.js";
+import { RuntimeToolCatalog } from "./tools/catalog.js";
+import { createSearchToolsTool } from "./tools/runtime.js";
 
 export async function runEvalCli(argv = hideBin(process.argv)): Promise<boolean> {
   const arguments_ = await yargs(argv)
@@ -48,12 +50,14 @@ export async function runEvalCli(argv = hideBin(process.argv)): Promise<boolean>
   const mcp = new McpManager(config.mcpServers, undefined, config.tools);
   try {
     await mcp.connectAndRegister(tools);
+    const toolCatalog = new RuntimeToolCatalog(tools, config.tools.discovery);
+    if (config.tools.discovery.mode === "search") tools.register(createSearchToolsTool(toolCatalog));
     const dataset = parseEvalDataset(JSON.parse(await readFile(datasetPath, "utf8")));
     const report = await runEval(dataset, {
       model: config.model.name, reasoning: config.model.reasoning, modelOptions: config.model.options,
       promptPath: arguments_.prompt ? resolve(arguments_.prompt) : config.agent.systemPrompt, promptContent: basePrompt,
       skills, tools: tools.entries(), secretValues: Object.values(config.mcpServers).flatMap((server) => Object.values(server.env ?? {})),
-      createAgent: (tracer) => new Agent({ model: new OllamaProvider({ baseUrl: config.model.baseUrl, model: config.model.name }), tools, systemPrompt: buildSystemPrompt(basePrompt, skills, progressiveSkills ? "progressive" : "eager"), reasoning: config.model.reasoning, modelOptions: config.model.options, maxSteps: arguments_["max-steps"] ?? config.agent.maxSteps, tracer, ...(progressiveSkills ? { skillCatalog: skills } : {}) }),
+      createAgent: (tracer) => new Agent({ model: new OllamaProvider({ baseUrl: config.model.baseUrl, model: config.model.name }), tools: toolCatalog, systemPrompt: buildSystemPrompt(basePrompt, skills, progressiveSkills ? "progressive" : "eager"), reasoning: config.model.reasoning, modelOptions: config.model.options, maxSteps: arguments_["max-steps"] ?? config.agent.maxSteps, tracer, ...(progressiveSkills ? { skillCatalog: skills } : {}) }),
     });
     const json = JSON.stringify(report, null, 2);
     if (arguments_.output) await writeFile(resolve(arguments_.output), `${json}\n`, "utf8");

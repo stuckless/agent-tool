@@ -6,6 +6,9 @@ import type { ModelProvider, ModelRequest, ModelResponse } from "../src/model/ty
 import { ToolRegistry } from "../src/tools/registry.js";
 import type { AgentTool } from "../src/tools/types.js";
 import { createLoadSkillTool } from "../src/skills/runtime.js";
+import { RuntimeToolCatalog } from "../src/tools/catalog.js";
+import { createSearchToolsTool } from "../src/tools/runtime.js";
+import { createTestTools } from "../src/tools/test-tools.js";
 
 class FakeModel implements ModelProvider {
   constructor(private readonly responses: ModelResponse[]) {}
@@ -100,5 +103,26 @@ describe("eval runner", () => {
 
     expect(report.summary).toEqual({ total: 1, passed: 1, failed: 0 });
     expect(report.cases[0]?.trace.steps).toContainEqual(expect.objectContaining({ type: "skill.load", name: "test-skill", ok: true }));
+  });
+
+  it("evaluates an expected search-then-tool discovery sequence", async () => {
+    const registry = new ToolRegistry(createTestTools("bluebird"));
+    const catalog = new RuntimeToolCatalog(registry, { mode: "search", initialAllow: [] });
+    registry.register(createSearchToolsTool(catalog));
+    const report = await runEval(parseEvalDataset([
+      { id: "discover-value", prompt: "Find the current value.", expect: { requiredTools: ["runtime.search_tools", "get_current_test_value"], forbiddenTools: ["echo"], maxToolCalls: 2, outputIncludes: ["bluebird"] } },
+    ]), {
+      ...runtime([], registry.entries()), tools: registry.entries(),
+      createAgent: (tracer) => new Agent({
+        model: new FakeModel([
+          { message: { role: "assistant", content: "", toolCalls: [{ id: "search", name: "runtime.search_tools", arguments: { query: "current value" } }] } },
+          { message: { role: "assistant", content: "", toolCalls: [{ id: "value", name: "get_current_test_value", arguments: {} }] } },
+          { message: { role: "assistant", content: "The current value is bluebird." } },
+        ]),
+        tools: catalog, systemPrompt: "Use tools.", reasoning: { mode: "provider-default" }, modelOptions: {}, tracer,
+      }),
+    });
+    expect(report.summary).toEqual({ total: 1, passed: 1, failed: 0 });
+    expect(report.cases[0]?.trace.steps).toContainEqual(expect.objectContaining({ type: "tool.discovery", discoveredTools: expect.arrayContaining(["get_current_test_value"]) }));
   });
 });

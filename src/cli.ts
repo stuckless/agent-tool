@@ -17,6 +17,8 @@ import { buildSystemPrompt } from "./skills/context.js";
 import { loadSkills, selectSkills } from "./skills/loader.js";
 import { createLoadSkillTool } from "./skills/runtime.js";
 import { TraceRecorder } from "./trace/trace.js";
+import { RuntimeToolCatalog } from "./tools/catalog.js";
+import { createSearchToolsTool } from "./tools/runtime.js";
 
 export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const arguments_ = await yargs(argv)
@@ -69,6 +71,8 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   let tracer: TraceRecorder | undefined;
   try {
     await mcp.connectAndRegister(tools);
+    const toolCatalog = new RuntimeToolCatalog(tools, config.tools.discovery);
+    if (config.tools.discovery.mode === "search") tools.register(createSearchToolsTool(toolCatalog));
     if (traceEnabled) {
       tracer = new TraceRecorder({
         model: config.model.name,
@@ -84,7 +88,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     }
     const agent = new Agent({
       model,
-      tools,
+      tools: toolCatalog,
       systemPrompt,
       reasoning: config.model.reasoning,
       modelOptions: config.model.options,

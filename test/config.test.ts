@@ -56,7 +56,7 @@ describe("loadConfig", () => {
           env: { EXAMPLE_SETTING: "value" },
         },
       },
-      tools: { allow: ["example.*"], deny: ["example.delete"] },
+      tools: { allow: ["example.*"], deny: ["example.delete"], discovery: { mode: "disabled", initialAllow: [] } },
     });
   });
 
@@ -87,5 +87,11 @@ describe("loadConfig", () => {
     const directory = await mkdtemp(join(tmpdir(), "agent-tool-config-"));
     await writeFile(join(directory, "agent.config.json"), JSON.stringify({ model: { name: "test" }, skills: { mode: "progressive" } }));
     await expect(loadConfig({ cwd: directory, environment: {} })).resolves.toMatchObject({ skills: { mode: "progressive" } });
+  });
+
+  it("accepts opt-in tool discovery configuration", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "agent-tool-config-"));
+    await writeFile(join(directory, "agent.config.json"), JSON.stringify({ model: { name: "test" }, tools: { discovery: { mode: "search", initialAllow: ["echo"] } } }));
+    await expect(loadConfig({ cwd: directory, environment: {} })).resolves.toMatchObject({ tools: { discovery: { mode: "search", initialAllow: ["echo"] } } });
   });
 });

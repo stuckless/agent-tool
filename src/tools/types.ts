@@ -5,7 +5,7 @@ export interface AgentTool {
   description: string;
   inputSchema: Record<string, unknown>;
   execute(arguments_: Record<string, unknown>): Promise<unknown>;
-  runtime?: { kind: "load-skill" };
+  runtime?: { kind: "load-skill" | "search-tools" };
 }
 
 export class ToolExecutionError extends Error {

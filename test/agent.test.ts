@@ -67,6 +67,7 @@ describe("Agent", () => {
       },
     ]);
     expect(events.map((event) => event.type)).toEqual([
+      "tool.catalog",
       "model.request",
       "model.response",
       "tool.call",

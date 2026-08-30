@@ -47,7 +47,7 @@ export class McpManager {
   constructor(
     private readonly servers: Record<string, McpStdioServerConfig>,
     private readonly clientFactory: McpClientFactory = new StdioMcpClientFactory(),
-    private readonly toolPolicy: ToolPolicy = { allow: ["*"], deny: [] },
+    private readonly toolPolicy: Pick<ToolPolicy, "allow" | "deny"> = { allow: ["*"], deny: [] },
   ) {}
 
   async connectAndRegister(registry: ToolRegistry): Promise<void> {
@@ -82,7 +82,7 @@ export class McpManager {
   }
 }
 
-export function isToolAllowed(name: string, policy: ToolPolicy): boolean {
+export function isToolAllowed(name: string, policy: Pick<ToolPolicy, "allow" | "deny">): boolean {
   return policy.allow.some((pattern) => matchesToolPattern(name, pattern))
     && !policy.deny.some((pattern) => matchesToolPattern(name, pattern));
 }

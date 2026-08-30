@@ -238,3 +238,29 @@ node dist/cli.js --skills progressive --help
 Fake-model tests verify the compact catalog before loading, ordered model → `runtime.load_skill` → next-model context flow, duplicate avoidance, safe unknown/unselected errors, JSON/human trace events, coexistence with local and normalized MCP tools, and an eval case requiring skill loading. Normal tests use no Ollama, network connection, production MCP server, or credentials.
 
 The CLI help demonstration confirms the progressive option with only local deterministic components. No live Ollama progressive-skill run, real MCP progressive-skill run, or measured context-efficiency/tool-choice comparison has been performed; these remain optional manual/live checks. Stop here to regroup before Phase 8.
+
+## Phase 8 — Dynamic Tool Discovery/Filtering
+
+**Status:** Complete and verified deterministically.
+
+Delivered:
+
+- opt-in `tools.discovery` configuration with `mode: "disabled" | "search"` and wildcard-capable `initialAllow`; disabled remains the compatibility default
+- runtime-owned `runtime.search_tools`, a compact deterministic keyword search over registered tool names and descriptions
+- per-run tool catalog access control: only initial-allowlisted, runtime-owned, or search-discovered tools are supplied to the model and permitted to execute
+- safe distinction between `ToolUnavailable` for known-but-not-discovered tools and `UnknownTool` for names not registered at all
+- compatibility for local, namespaced MCP, and runtime-owned tools; progressive `runtime.load_skill` remains available when filtering is enabled
+- observable `tool.catalog` and `tool.discovery` events in human and JSON traces, and preserved trace/eval recording
+- a deterministic eval requiring `runtime.search_tools` followed by a discovered local tool
+
+Deterministic verification completed:
+
+```text
+npm test          # 48 tests passed; 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+```
+
+Fake-model tests cover unchanged default all-tools behavior, filtered initial context, search → discovered tool → execution, unavailable-tool recovery, progressive-skill/runtime compatibility, local and namespaced MCP compatibility, human/JSON trace events, and eval behavior. Normal tests use no Ollama, network connection, production MCP server, or credentials.
+
+CLI demonstration completed with a local fake Ollama-compatible server and `--trace-json` using `tools.discovery.mode: "search"`: the trace showed only `runtime.search_tools` initially, then a `tool.discovery` event, then execution of `get_current_test_value`. It is deterministic and does not verify a live model's tool-selection quality. A live Ollama discovery run, real MCP discovery run, large real-world catalog/context measurement, and measured comparison against the unfiltered configuration remain optional manual/live checks. Stop here to regroup before Phase 9.
