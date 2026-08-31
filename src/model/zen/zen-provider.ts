@@ -4,11 +4,13 @@ import { loadDotEnv } from "../../env.js";
 import { resolve } from "node:path";
 import { ZenAuthenticationError, ZenProviderError, redactZenSecrets } from "./zen-errors.js";
 import { resolveZenProtocol, type ZenModelRoutes } from "./zen-protocol-router.js";
+import { ZenOpenAiChatAdapter } from "./adapters/zen-openai-chat.js";
 
 const defaultZenBaseUrl = "https://opencode.ai/zen/v1";
 
 export interface ZenProviderOptions {
   baseUrl?: string;
+  model?: string;
   apiKey?: string;
   fetch?: typeof fetch;
   modelRoutes?: ZenModelRoutes;
@@ -19,8 +21,8 @@ interface ZenModelsResponse {
 }
 
 /**
- * Zen's Z2 facade deliberately implements catalog discovery only. Protocol
- * routing and inference are added in later phases.
+ * Zen owns shared authentication and protocol routing. Wire-format translation
+ * remains inside protocol adapters.
  */
 export class ZenProvider implements ModelProvider {
   readonly id = "zen" as const;
@@ -28,24 +30,25 @@ export class ZenProvider implements ModelProvider {
   private readonly apiKey: string | undefined;
   private readonly fetchImplementation: typeof fetch;
   private readonly modelRoutes: ZenModelRoutes;
+  private readonly model: string | undefined;
 
   constructor(options: ZenProviderOptions = {}) {
     this.baseUrl = (options.baseUrl ?? defaultZenBaseUrl).replace(/\/$/, "");
     this.apiKey = options.apiKey ?? process.env.OPENCODE_ZEN_API_KEY;
     this.fetchImplementation = options.fetch ?? fetch;
     this.modelRoutes = options.modelRoutes ?? {};
+    this.model = options.model;
   }
 
   async listModels(): Promise<ModelDescriptor[]> {
-    const apiKey = await this.requireApiKey();
     let response: Response;
     try {
-      response = await this.fetchImplementation(`${this.baseUrl}/models`, {
+      response = await this.fetchZen("/models", {
         method: "GET",
-        headers: { authorization: `Bearer ${apiKey}` },
       });
     } catch (error) {
-      throw new ZenProviderError(redactZenSecrets(`Could not reach OpenCode Zen model catalog: ${errorMessage(error)}`, [apiKey]));
+      if (error instanceof ZenProviderError) throw error;
+      throw new ZenProviderError(`Could not reach OpenCode Zen model catalog: ${errorMessage(error)}`);
     }
 
     if (response.status === 401 || response.status === 403) throw new ZenAuthenticationError();
@@ -60,8 +63,14 @@ export class ZenProvider implements ModelProvider {
     return normalizeZenModelDescriptors(body, this.modelRoutes);
   }
 
-  async generate(_request: ModelRequest): Promise<ModelResponse> {
-    throw new ZenProviderError("Zen inference is not available until a Zen protocol adapter is configured.");
+  async generate(request: ModelRequest): Promise<ModelResponse> {
+    if (!this.model) throw new ZenProviderError("Zen inference requires a model name.");
+    const protocol = resolveZenProtocol(this.model, this.modelRoutes);
+    if (protocol !== "openai-chat") {
+      const routedProtocol = protocol ?? "unknown";
+      throw new ZenProviderError(`Zen model \"${this.model}\" is routed to ${routedProtocol}, but no adapter for that Zen protocol is implemented.`);
+    }
+    return new ZenOpenAiChatAdapter({ model: this.model, request: this.fetchZen.bind(this) }).generate(request);
   }
 
   private async requireApiKey(): Promise<string> {
@@ -70,6 +79,18 @@ export class ZenProvider implements ModelProvider {
       throw new ZenAuthenticationError("Zen provider requires OPENCODE_ZEN_API_KEY. Create an OpenCode Zen API key and set the environment variable.");
     }
     return apiKey;
+  }
+
+  private async fetchZen(path: string, init: RequestInit): Promise<Response> {
+    const apiKey = await this.requireApiKey();
+    try {
+      return await this.fetchImplementation(`${this.baseUrl}${path}`, {
+        ...init,
+        headers: { ...init.headers, authorization: `Bearer ${apiKey}` },
+      });
+    } catch (error) {
+      throw new ZenProviderError(redactZenSecrets(`Could not reach OpenCode Zen: ${errorMessage(error)}`, [apiKey]));
+    }
   }
 }
 

@@ -95,8 +95,6 @@ OPENCODE_ZEN_API_KEY=... node dist/cli.js models --provider zen
 
 ## Next phase
 
-Phase Z4 — OpenAI-compatible Chat Completions adapter. Do not begin it until explicitly requested.
-
 ## Phase Z3 — Zen protocol router
 
 **Status:** Complete.
@@ -136,3 +134,42 @@ It fails before any Zen fetch with the existing missing-credential message. A li
 ```bash
 OPENCODE_ZEN_API_KEY=... node dist/cli.js models --provider zen
 ```
+
+## Phase Z4 — OpenAI-compatible Chat Completions adapter
+
+**Status:** Complete.
+
+Delivered:
+
+- `../../src/model/zen/adapters/zen-openai-chat.ts`, a narrow adapter for Zen's `/zen/v1/chat/completions` endpoint using the existing normalized model, message, tool, and tool-result contract
+- request mapping for system/user/assistant/tool messages, OpenAI-compatible function tools, assistant tool-call replay, and correlated tool results
+- response normalization for text, ordered tool calls and IDs, finish reasons, and prompt/completion usage metadata
+- Zen provider selection through the existing Z3 protocol router; only models routed to `openai-chat` invoke the adapter, while other or unknown protocols fail before a network call with a clear routing error
+- centralized Zen base-URL and Authorization construction in `ZenProvider`, shared by model discovery and the chat adapter; authentication, transport, and invalid-response errors are credential-redacted
+- offline adapter tests using fake `fetch` responses, including request mapping, tool-result continuation, response mapping, safe authentication/transport failures, registry routing, and unsupported protocol behavior
+
+Scope preserved:
+
+- The adapter uses the existing built-in `fetch` boundary; no AI SDK dependency was added because no additional library is required for this single non-streaming endpoint.
+- No Responses, Anthropic, Gemini, streaming, auto-selection, fallback, retry, persistent catalog, or Z5+ behavior was added.
+- Ollama remains unchanged and continues to use its existing provider implementation.
+
+Verification completed:
+
+```text
+npm test          # 84 passed, 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+git diff --check
+```
+
+Normal tests remain credential-free and offline. A compiled CLI smoke invocation selected the chat adapter but could not reach Zen from this environment, returning the sanitized `Could not reach OpenCode Zen: fetch failed` error. A successful live multi-turn interaction therefore remains an opt-in acceptance check. After setting a real key and selecting a currently routed chat model, run:
+
+```bash
+OPENCODE_ZEN_API_KEY=... node dist/cli.js --provider zen --model <chat-model> "What is 2+2?"
+OPENCODE_ZEN_API_KEY=... node dist/cli.js --provider zen --model <chat-model> "Use the test tool and report its result."
+```
+
+## Next phase
+
+Phase Z5 — OpenAI Responses adapter. Do not begin it until explicitly requested.

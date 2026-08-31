@@ -26,6 +26,7 @@ export class ProviderRegistry {
       case "zen":
         return new ZenProvider({
           baseUrl: config.baseUrl,
+          model: config.name,
           modelRoutes: config.modelRoutes,
           ...(options.fetch ? { fetch: options.fetch } : {}),
         });
