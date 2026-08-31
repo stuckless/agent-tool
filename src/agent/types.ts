@@ -6,7 +6,7 @@ export type AgentTraceEvent =
   | { type: "skill.load"; step: number; name: string; ok: boolean; alreadyLoaded?: boolean }
   | { type: "tool.catalog"; totalTools: number; availableTools: string[]; filtering: boolean }
   | { type: "tool.discovery"; step: number; query: string; discoveredTools: string[] }
-  | { type: "model.request"; step: number }
+  | { type: "model.request"; step: number; messages?: ConversationMessage[] }
   | {
       type: "model.response";
       step: number;

@@ -104,6 +104,14 @@ Reasoning is configured separately from generic model options. Use `--reasoning 
 
 ### Trace modes
 
+Use `--log` for a live, color-coded activity stream on stderr. It shows the conversation sent to the assistant, its response, tool calls, and normalized tool results as each step occurs; the final answer still remains clean on stdout:
+
+```bash
+AGENT_MODEL="your-local-model" npm run dev -- --log "Explain a work order"
+```
+
+`--log` can be combined with either trace mode. Sensitive-looking fields and configured MCP environment values are redacted. Provider-exposed thinking stays hidden unless `--show-thinking` is supplied.
+
 Use `--trace` to write a concise, human-readable run trace to stderr. The final answer remains the only normal stdout output, so command substitution and piping stay clean:
 
 ```bash
@@ -124,7 +132,7 @@ The two trace formats are mutually exclusive. Provider-exposed thinking is hidde
 AGENT_MODEL="your-local-model" npm run dev -- --trace --show-thinking "Explain a work order"
 ```
 
-`--show-thinking` has no effect without tracing and never affects model requests or agent control flow. Trace values with common secret-like field names (`token`, `password`, `apiKey`, and similar), plus configured MCP environment values, are redacted, but traces can still contain user prompts and tool data—handle them accordingly.
+`--show-thinking` has no effect without `--log`, `--trace`, or `--trace-json`, and never affects model requests or agent control flow. Log and trace values with common secret-like field names (`token`, `password`, `apiKey`, and similar), plus configured MCP environment values, are redacted, but they can still contain user prompts and tool data—handle them accordingly.
 
 The agent advertises two deterministic local tools in Phase 2: `echo` and `get_current_test_value`. When the model requests a tool, the runtime appends the complete normalized assistant turn (including provider-exposed reasoning/state), executes calls in their returned order, appends structured tool-result messages, and then asks the model to continue. `--max-steps <n>` limits model turns (default: 10); reaching the limit is an error, never a partial success.
 

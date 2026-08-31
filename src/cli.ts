@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 import { ConfigError, loadConfig } from "./config.js";
 import { Agent } from "./agent/agent.js";
+import type { AgentTracer } from "./agent/types.js";
 import { OllamaProvider } from "./model/ollama.js";
 import type { ReasoningConfig } from "./model/types.js";
 import { loadSystemPrompt } from "./prompts/loader.js";
@@ -17,6 +18,7 @@ import { buildSystemPrompt } from "./skills/context.js";
 import { loadSkills, selectSkills } from "./skills/loader.js";
 import { createLoadSkillTool } from "./skills/runtime.js";
 import { TraceRecorder } from "./trace/trace.js";
+import { LiveLogger } from "./trace/log.js";
 import { RuntimeToolCatalog } from "./tools/catalog.js";
 import { createSearchToolsTool } from "./tools/runtime.js";
 
@@ -36,7 +38,8 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     .option("max-steps", { type: "number", description: "Maximum model turns before the agent stops." })
     .option("trace", { type: "boolean", default: false, description: "Write a human-readable run trace to stderr." })
     .option("trace-json", { type: "boolean", default: false, description: "Write a JSON run trace to stderr." })
-    .option("show-thinking", { type: "boolean", default: false, description: "With tracing, include provider-exposed thinking text." })
+    .option("log", { type: "boolean", default: false, description: "Write live, color-coded agent events to stderr." })
+    .option("show-thinking", { type: "boolean", default: false, description: "With --log or tracing, include provider-exposed thinking text." })
     .demandCommand(1, "Provide a prompt.")
     .strict()
     .help()
@@ -69,6 +72,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const mcp = new McpManager(config.mcpServers, undefined, config.tools);
   const traceEnabled = arguments_.trace || arguments_["trace-json"];
   let tracer: TraceRecorder | undefined;
+  let logger: LiveLogger | undefined;
   try {
     await mcp.connectAndRegister(tools);
     const toolCatalog = new RuntimeToolCatalog(tools, config.tools.discovery);
@@ -86,6 +90,13 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
         secretValues: Object.values(config.mcpServers).flatMap((server) => Object.values(server.env ?? {})),
       });
     }
+    if (arguments_.log) {
+      logger = new LiveLogger({
+        showThinking: arguments_["show-thinking"],
+        secretValues: Object.values(config.mcpServers).flatMap((server) => Object.values(server.env ?? {})),
+      });
+    }
+    const agentTracer = combineTracers(tracer, logger);
     const agent = new Agent({
       model,
       tools: toolCatalog,
@@ -93,7 +104,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
       reasoning: config.model.reasoning,
       modelOptions: config.model.options,
       maxSteps: arguments_.maxSteps ?? config.agent.maxSteps,
-      tracer,
+      tracer: agentTracer,
       ...(progressiveSkills ? { skillCatalog: selectedSkills } : {}),
     });
     const result = await agent.run(prompt);
@@ -102,6 +113,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     }
     console.log(result.answer);
   } catch (error) {
+    logger?.fail(error);
     if (tracer) {
       tracer.fail(error);
       console.error(arguments_["trace-json"] ? JSON.stringify(tracer.toJson()) : tracer.toHuman());
@@ -110,6 +122,12 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   } finally {
     await mcp.close();
   }
+}
+
+function combineTracers(...tracers: Array<AgentTracer | undefined>): AgentTracer | undefined {
+  const activeTracers = tracers.filter((tracer): tracer is AgentTracer => tracer !== undefined);
+  if (activeTracers.length === 0) return undefined;
+  return { trace(event) { for (const tracer of activeTracers) tracer.trace(event); } };
 }
 
 function parseReasoningOption(value: "default" | "off" | "on" | "low" | "medium" | "high" | "max"): ReasoningConfig {

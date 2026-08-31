@@ -39,7 +39,7 @@ export class Agent {
     this.options.tracer?.trace({ type: "tool.catalog", totalTools: catalog.allNames().length, availableTools: catalog.initialNames(), filtering: catalog.filteringEnabled() });
 
     for (let step = 1; step <= this.maxSteps; step += 1) {
-      this.options.tracer?.trace({ type: "model.request", step });
+      this.options.tracer?.trace({ type: "model.request", step, messages: structuredClone(messages) });
       const response = await this.options.model.chat({
         messages,
         tools: catalog.definitions(),
