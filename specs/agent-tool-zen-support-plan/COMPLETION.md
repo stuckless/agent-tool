@@ -28,4 +28,35 @@ No provider refactor or Zen code was added. The repository remains on its existi
 
 ## Next phase
 
-Phase Z1 — Introduce the `ModelProvider` boundary. Do not begin it until explicitly requested.
+Phase Z2 — Zen provider shell + authentication + discovery. Do not begin it until explicitly requested.
+
+## Phase Z1 — Introduce ModelProvider boundary
+
+**Status:** Complete.
+
+Delivered:
+
+- provider-neutral request/response/message types in `../../src/model/model-types.ts` and the `ModelProvider` interface in `../../src/model/model-provider.ts`
+- an Ollama-only `providerRegistry` which creates the migrated `OllamaProvider`
+- moved Ollama HTTP request/response mapping into `../../src/model/ollama/ollama-provider.ts`; the previous `model/ollama.ts` path remains a compatibility re-export
+- updated CLI and eval CLI construction to resolve the provider through the registry
+- updated `Agent` to invoke the provider-neutral `generate()` operation, with no Ollama or Zen imports
+- a provider registry unit test, an explicit agent-source import-boundary test, and fake-provider agent/test doubles
+
+Behavior preserved:
+
+- assistant messages (including opaque provider-exposed thinking), tool calls, and ordered tool results are replayed as a complete normalized conversation
+- Ollama request mapping, usage/finish-reason normalization, trace events, and `maxSteps` behavior are unchanged
+
+Verification completed:
+
+```text
+npm test          # 52 passed, 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+node dist/cli.js --help
+node dist/eval-cli.js --help
+AGENT_OLLAMA_URL=http://192.168.11.10:11434 AGENT_MODEL=granite4.2:8b node dist/cli.js --max-steps 1 "What is 2 + 2? Answer briefly."  # 4
+```
+
+No Zen protocol, credential, routing, discovery, streaming, or other Z2+ functionality was added.

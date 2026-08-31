@@ -1,4 +1,5 @@
-import type { ConversationMessage, ModelProvider, ModelToolCall, ReasoningConfig, ToolResultMessage } from "../model/types.js";
+import type { ConversationMessage, ModelToolCall, ReasoningConfig, ToolResultMessage } from "../model/model-types.js";
+import type { ModelProvider } from "../model/model-provider.js";
 import { ToolRegistry } from "../tools/registry.js";
 import type { ToolCatalog } from "../tools/catalog.js";
 import { ToolExecutionError } from "../tools/types.js";
@@ -40,7 +41,7 @@ export class Agent {
 
     for (let step = 1; step <= this.maxSteps; step += 1) {
       this.options.tracer?.trace({ type: "model.request", step, messages: structuredClone(messages) });
-      const response = await this.options.model.chat({
+      const response = await this.options.model.generate({
         messages,
         tools: catalog.definitions(),
         reasoning: this.options.reasoning,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { OllamaProvider } from "../src/model/ollama.js";
+import { OllamaProvider } from "../src/model/ollama/ollama-provider.js";
 
 describe("OllamaProvider", () => {
   it("normalizes a native Ollama chat response", async () => {
@@ -21,7 +21,7 @@ describe("OllamaProvider", () => {
       fetch: fetchMock,
     });
 
-    const response = await provider.chat({
+    const response = await provider.generate({
       messages: [{ role: "user", content: "What is a work order?" }],
       tools: [],
       reasoning: { mode: "provider-default" },
@@ -60,7 +60,7 @@ describe("OllamaProvider", () => {
     );
     const provider = new OllamaProvider({ baseUrl: "http://ollama.test", model: "test-model", fetch: fetchMock });
 
-    await provider.chat({ messages: [], tools: [], reasoning, options: {} });
+    await provider.generate({ messages: [], tools: [], reasoning, options: {} });
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string) as Record<string, unknown>;
     expect(requestBody.think).toBe(expectedThink);
@@ -72,7 +72,7 @@ describe("OllamaProvider", () => {
     );
     const provider = new OllamaProvider({ baseUrl: "http://ollama.test", model: "test-model", fetch: firstFetch });
 
-    const firstResponse = await provider.chat({
+    const firstResponse = await provider.generate({
       messages: [{ role: "user", content: "Inspect the record." }],
       tools: [],
       reasoning: { mode: "enabled" },
@@ -84,7 +84,7 @@ describe("OllamaProvider", () => {
       new Response(JSON.stringify({ message: { content: "done" } }), { status: 200 }),
     );
     const replayProvider = new OllamaProvider({ baseUrl: "http://ollama.test", model: "test-model", fetch: replayFetch });
-    await replayProvider.chat({
+    await replayProvider.generate({
       messages: [firstResponse.message],
       tools: [],
       reasoning: { mode: "provider-default" },
@@ -113,7 +113,7 @@ describe("OllamaProvider", () => {
     );
     const provider = new OllamaProvider({ baseUrl: "http://ollama.test", model: "test-model", fetch: fetchMock });
 
-    const response = await provider.chat({
+    const response = await provider.generate({
       messages: [{ role: "user", content: "Echo hello." }],
       tools: [{ name: "echo", description: "Echoes text.", inputSchema: { type: "object" } }],
       reasoning: { mode: "provider-default" },
@@ -134,6 +134,6 @@ describe("OllamaProvider", () => {
       fetch: vi.fn().mockResolvedValue(new Response("sensitive server details", { status: 500 })),
     });
 
-    await expect(provider.chat({ messages: [], tools: [], reasoning: { mode: "provider-default" }, options: {} })).rejects.toThrow("HTTP 500");
+    await expect(provider.generate({ messages: [], tools: [], reasoning: { mode: "provider-default" }, options: {} })).rejects.toThrow("HTTP 500");
   });
 });

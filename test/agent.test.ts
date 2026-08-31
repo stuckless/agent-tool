@@ -1,17 +1,21 @@
+import { readFile } from "node:fs/promises";
+
 import { describe, expect, it } from "vitest";
 
 import { Agent } from "../src/agent/agent.js";
 import { StepLimitExceededError, type AgentTraceEvent } from "../src/agent/types.js";
-import type { ModelProvider, ModelRequest, ModelResponse } from "../src/model/types.js";
+import type { ModelProvider } from "../src/model/model-provider.js";
+import type { ModelRequest, ModelResponse } from "../src/model/model-types.js";
 import { ToolRegistry } from "../src/tools/registry.js";
 import { createTestTools } from "../src/tools/test-tools.js";
 
 class FakeModel implements ModelProvider {
+  readonly id = "ollama" as const;
   readonly requests: ModelRequest[] = [];
 
   constructor(private readonly responses: ModelResponse[]) {}
 
-  async chat(request: ModelRequest): Promise<ModelResponse> {
+  async generate(request: ModelRequest): Promise<ModelResponse> {
     this.requests.push(structuredClone(request));
     const response = this.responses.shift();
     if (!response) {
@@ -22,6 +26,12 @@ class FakeModel implements ModelProvider {
 }
 
 describe("Agent", () => {
+  it("has no provider-specific imports", async () => {
+    const source = await readFile(new URL("../src/agent/agent.ts", import.meta.url), "utf8");
+
+    expect(source).not.toMatch(/model\/ollama|OllamaProvider|ZenProvider/);
+  });
+
   it("executes an ordered tool call, preserves the complete assistant turn, and continues to a final answer", async () => {
     const model = new FakeModel([
       {

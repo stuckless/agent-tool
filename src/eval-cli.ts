@@ -11,7 +11,7 @@ import { Agent } from "./agent/agent.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { parseEvalDataset, runEval } from "./eval/runner.js";
 import { McpManager } from "./mcp/manager.js";
-import { OllamaProvider } from "./model/ollama.js";
+import { providerRegistry } from "./model/provider-registry.js";
 import type { ReasoningConfig } from "./model/types.js";
 import { loadSystemPrompt } from "./prompts/loader.js";
 import { buildSystemPrompt } from "./skills/context.js";
@@ -57,7 +57,7 @@ export async function runEvalCli(argv = hideBin(process.argv)): Promise<boolean>
       model: config.model.name, reasoning: config.model.reasoning, modelOptions: config.model.options,
       promptPath: arguments_.prompt ? resolve(arguments_.prompt) : config.agent.systemPrompt, promptContent: basePrompt,
       skills, tools: tools.entries(), secretValues: Object.values(config.mcpServers).flatMap((server) => Object.values(server.env ?? {})),
-      createAgent: (tracer) => new Agent({ model: new OllamaProvider({ baseUrl: config.model.baseUrl, model: config.model.name }), tools: toolCatalog, systemPrompt: buildSystemPrompt(basePrompt, skills, progressiveSkills ? "progressive" : "eager"), reasoning: config.model.reasoning, modelOptions: config.model.options, maxSteps: arguments_["max-steps"] ?? config.agent.maxSteps, tracer, ...(progressiveSkills ? { skillCatalog: skills } : {}) }),
+      createAgent: (tracer) => new Agent({ model: providerRegistry.create(config.model), tools: toolCatalog, systemPrompt: buildSystemPrompt(basePrompt, skills, progressiveSkills ? "progressive" : "eager"), reasoning: config.model.reasoning, modelOptions: config.model.options, maxSteps: arguments_["max-steps"] ?? config.agent.maxSteps, tracer, ...(progressiveSkills ? { skillCatalog: skills } : {}) }),
     });
     const json = JSON.stringify(report, null, 2);
     if (arguments_.output) await writeFile(resolve(arguments_.output), `${json}\n`, "utf8");

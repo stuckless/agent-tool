@@ -34,9 +34,10 @@ Use a count tool for count questions.
 `;
 
 class SkillAwareModel implements ModelProvider {
+  readonly id = "ollama" as const;
   readonly requests: ModelRequest[] = [];
 
-  async chat(request: ModelRequest): Promise<ModelResponse> {
+  async generate(request: ModelRequest): Promise<ModelResponse> {
     this.requests.push(structuredClone(request));
     const systemPrompt = request.messages[0]?.content ?? "";
     const hasWorkOrderSkill = systemPrompt.includes('<skill name="work-orders">');
@@ -59,11 +60,12 @@ class SkillAwareModel implements ModelProvider {
 }
 
 class FakeModel implements ModelProvider {
+  readonly id = "ollama" as const;
   readonly requests: ModelRequest[] = [];
 
   constructor(private readonly responses: ModelResponse[]) {}
 
-  async chat(request: ModelRequest): Promise<ModelResponse> {
+  async generate(request: ModelRequest): Promise<ModelResponse> {
     this.requests.push(structuredClone(request));
     const response = this.responses.shift();
     if (!response) throw new Error("Fake model ran out of responses.");

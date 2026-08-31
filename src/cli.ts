@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { ConfigError, loadConfig } from "./config.js";
 import { Agent } from "./agent/agent.js";
 import type { AgentTracer } from "./agent/types.js";
-import { OllamaProvider } from "./model/ollama.js";
+import { providerRegistry } from "./model/provider-registry.js";
 import type { ReasoningConfig } from "./model/types.js";
 import { loadSystemPrompt } from "./prompts/loader.js";
 import { ToolRegistry } from "./tools/registry.js";
@@ -63,10 +63,7 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const selectedSkills = selectSkills(availableSkills, arguments_.skills ?? config.skills.mode, requestedSkillNames);
   const progressiveSkills = (arguments_.skills ?? config.skills.mode) === "progressive";
   const systemPrompt = buildSystemPrompt(basePrompt, selectedSkills, progressiveSkills ? "progressive" : "eager");
-  const model = new OllamaProvider({
-    baseUrl: config.model.baseUrl,
-    model: config.model.name,
-  });
+  const model = providerRegistry.create(config.model);
   const tools = new ToolRegistry(createTestTools());
   if (progressiveSkills) tools.register(createLoadSkillTool(selectedSkills, availableSkills));
   const mcp = new McpManager(config.mcpServers, undefined, config.tools);

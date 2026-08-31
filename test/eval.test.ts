@@ -11,8 +11,9 @@ import { createSearchToolsTool } from "../src/tools/runtime.js";
 import { createTestTools } from "../src/tools/test-tools.js";
 
 class FakeModel implements ModelProvider {
+  readonly id = "ollama" as const;
   constructor(private readonly responses: ModelResponse[]) {}
-  async chat(_request: ModelRequest): Promise<ModelResponse> {
+  async generate(_request: ModelRequest): Promise<ModelResponse> {
     const response = this.responses.shift();
     if (!response) throw new Error("Fake model ran out of responses.");
     return response;

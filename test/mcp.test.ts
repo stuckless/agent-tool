@@ -48,9 +48,10 @@ class FakeMcpClientFactory implements McpClientFactory {
 }
 
 class FakeModel implements ModelProvider {
+  readonly id = "ollama" as const;
   constructor(private readonly responses: ModelResponse[]) {}
 
-  async chat(_request: ModelRequest): Promise<ModelResponse> {
+  async generate(_request: ModelRequest): Promise<ModelResponse> {
     const response = this.responses.shift();
     if (!response) {
       throw new Error("Fake model ran out of responses.");

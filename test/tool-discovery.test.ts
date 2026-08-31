@@ -11,9 +11,10 @@ import { createSearchToolsTool } from "../src/tools/runtime.js";
 import { createTestTools } from "../src/tools/test-tools.js";
 
 class FakeModel implements ModelProvider {
+  readonly id = "ollama" as const;
   readonly requests: ModelRequest[] = [];
   constructor(private readonly responses: ModelResponse[]) {}
-  async chat(request: ModelRequest): Promise<ModelResponse> {
+  async generate(request: ModelRequest): Promise<ModelResponse> {
     this.requests.push(structuredClone(request));
     const response = this.responses.shift();
     if (!response) throw new Error("Fake model ran out of responses.");
