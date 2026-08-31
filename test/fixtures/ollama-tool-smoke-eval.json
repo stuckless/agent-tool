@@ -1,0 +1,12 @@
+[
+  {
+    "id": "get-current-test-value",
+    "prompt": "Use get_current_test_value and report the value.",
+    "expect": {
+      "requiredTools": ["get_current_test_value"],
+      "forbiddenTools": [],
+      "maxToolCalls": 1,
+      "outputIncludes": ["phase-2-current-test-value"]
+    }
+  }
+]
