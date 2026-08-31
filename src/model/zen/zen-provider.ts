@@ -70,7 +70,11 @@ export class ZenProvider implements ModelProvider {
       const routedProtocol = protocol ?? "unknown";
       throw new ZenProviderError(`Zen model \"${this.model}\" is routed to ${routedProtocol}, but no adapter for that Zen protocol is implemented.`);
     }
-    return new ZenOpenAiChatAdapter({ model: this.model, request: this.fetchZen.bind(this) }).generate(request);
+    return new ZenOpenAiChatAdapter({
+      model: this.model,
+      baseUrl: this.baseUrl,
+      fetch: (input, init) => this.fetchZen(input instanceof Request ? input.url : input.toString(), init ?? {}),
+    }).generate(request);
   }
 
   private async requireApiKey(): Promise<string> {
@@ -81,10 +85,10 @@ export class ZenProvider implements ModelProvider {
     return apiKey;
   }
 
-  private async fetchZen(path: string, init: RequestInit): Promise<Response> {
+  private async fetchZen(url: string, init: RequestInit): Promise<Response> {
     const apiKey = await this.requireApiKey();
     try {
-      return await this.fetchImplementation(`${this.baseUrl}${path}`, {
+      return await this.fetchImplementation(url.startsWith("http") ? url : `${this.baseUrl}${url}`, {
         ...init,
         headers: { ...init.headers, authorization: `Bearer ${apiKey}` },
       });

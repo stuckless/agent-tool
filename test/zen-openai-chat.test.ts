@@ -20,16 +20,15 @@ describe("Zen OpenAI-compatible Chat Completions", () => {
       tools: [{ name: "lookup", description: "Looks up a value.", inputSchema: { type: "object", properties: { id: { type: "string" } } } }],
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("https://zen.test/zen/v1/chat/completions", {
+    expect(fetchMock).toHaveBeenCalledWith("https://zen.test/zen/v1/chat/completions", expect.objectContaining({
       method: "POST",
-      headers: { "content-type": "application/json", authorization: "Bearer test-key" },
-      body: JSON.stringify({
-        temperature: 0.2,
-        model: "deepseek-test",
-        messages: [{ role: "system", content: "Be precise." }, { role: "user", content: "Look up a value." }],
-        stream: false,
-        tools: [{ type: "function", function: { name: "lookup", description: "Looks up a value.", parameters: { type: "object", properties: { id: { type: "string" } } } } }],
-      }),
+      headers: expect.objectContaining({ "content-type": "application/json", authorization: "Bearer test-key" }),
+    }));
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).toEqual({
+      temperature: 0.2,
+      model: "deepseek-test",
+      messages: [{ role: "system", content: "Be precise." }, { role: "user", content: "Look up a value." }],
+      tools: [{ type: "function", function: { name: "lookup", description: "Looks up a value.", parameters: { type: "object", properties: { id: { type: "string" } } } } }],
     });
   });
 
@@ -68,8 +67,8 @@ describe("Zen OpenAI-compatible Chat Completions", () => {
 
     const body = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string) as { messages: unknown[] };
     expect(body.messages).toEqual([
-      { role: "assistant", content: "", tool_calls: [{ id: "call-abc", type: "function", function: { name: "lookup", arguments: "{\"key\":\"answer\"}" } }] },
-      { role: "tool", tool_call_id: "call-abc", name: "lookup", content: "42" },
+      { role: "assistant", content: null, tool_calls: [{ id: "call-abc", type: "function", function: { name: "lookup", arguments: "{\"key\":\"answer\"}" } }] },
+      { role: "tool", tool_call_id: "call-abc", content: "42" },
     ]);
   });
 

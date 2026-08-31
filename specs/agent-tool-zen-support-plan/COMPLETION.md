@@ -141,7 +141,7 @@ OPENCODE_ZEN_API_KEY=... node dist/cli.js models --provider zen
 
 Delivered:
 
-- `../../src/model/zen/adapters/zen-openai-chat.ts`, a narrow adapter for Zen's `/zen/v1/chat/completions` endpoint using the existing normalized model, message, tool, and tool-result contract
+- `../../src/model/zen/adapters/zen-openai-chat.ts`, a narrow adapter for Zen's `/zen/v1/chat/completions` endpoint using `@ai-sdk/openai-compatible` behind the existing normalized model, message, tool, and tool-result contract
 - request mapping for system/user/assistant/tool messages, OpenAI-compatible function tools, assistant tool-call replay, and correlated tool results
 - response normalization for text, ordered tool calls and IDs, finish reasons, and prompt/completion usage metadata
 - Zen provider selection through the existing Z3 protocol router; only models routed to `openai-chat` invoke the adapter, while other or unknown protocols fail before a network call with a clear routing error
@@ -150,7 +150,7 @@ Delivered:
 
 Scope preserved:
 
-- The adapter uses the existing built-in `fetch` boundary; no AI SDK dependency was added because no additional library is required for this single non-streaming endpoint.
+- Added the `ai` core package and `@ai-sdk/openai-compatible`. The adapter uses the provider's low-level non-streaming `doGenerate()` operation only; the project-owned agent loop remains unchanged.
 - No Responses, Anthropic, Gemini, streaming, auto-selection, fallback, retry, persistent catalog, or Z5+ behavior was added.
 - Ollama remains unchanged and continues to use its existing provider implementation.
 
