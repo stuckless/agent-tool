@@ -12,8 +12,8 @@ describe("ZenProvider", () => {
     const provider = new ZenProvider({ baseUrl: "https://zen.test/zen/v1/", apiKey: "test-key", fetch: fetchMock });
 
     await expect(provider.listModels()).resolves.toEqual([
-      { id: "gpt-test", provider: "zen", metadata: { ownedBy: "openai", created: 123 } },
-      { id: "deepseek-test", provider: "zen", metadata: { ownedBy: "deepseek" } },
+      { id: "gpt-test", provider: "zen", metadata: { ownedBy: "openai", created: 123, protocol: "openai-responses", routingStatus: "supported" } },
+      { id: "deepseek-test", provider: "zen", metadata: { ownedBy: "deepseek", protocol: "openai-chat", routingStatus: "supported" } },
     ]);
     expect(fetchMock).toHaveBeenCalledWith("https://zen.test/zen/v1/models", {
       method: "GET",

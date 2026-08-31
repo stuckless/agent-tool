@@ -32,8 +32,9 @@ const rawConfigSchema = z.object({
     zen: z.object({
       baseUrl: z.string().url().optional(),
       apiKeyEnv: z.literal("OPENCODE_ZEN_API_KEY").optional(),
-    }).default({}),
-  }).default({ zen: {} }),
+      modelRoutes: z.record(z.string().min(1), z.enum(["openai-responses", "anthropic-messages", "openai-chat", "google-generative"])).default({}),
+    }).default({ modelRoutes: {} }),
+  }).default({ zen: { modelRoutes: {} } }),
   agent: z
     .object({
       systemPrompt: z.string().min(1).optional(),
@@ -153,14 +154,25 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Runti
     throw new ConfigError(`${provider === "zen" ? "Zen" : "Ollama"} base URL must be an http or https URL.`);
   }
 
+  const model = provider === "zen"
+    ? {
+        provider,
+        baseUrl: baseUrl.replace(/\/$/, ""),
+        name: modelName ?? "",
+        modelRoutes: parsedConfig.data.providers.zen.modelRoutes,
+        reasoning: options.reasoning ?? parsedConfig.data.model.reasoning,
+        options: parsedConfig.data.model.options,
+      }
+    : {
+        provider,
+        baseUrl: baseUrl.replace(/\/$/, ""),
+        name: modelName ?? "",
+        reasoning: options.reasoning ?? parsedConfig.data.model.reasoning,
+        options: parsedConfig.data.model.options,
+      };
+
   return {
-    model: {
-      provider,
-      baseUrl: baseUrl.replace(/\/$/, ""),
-      name: modelName ?? "",
-      reasoning: options.reasoning ?? parsedConfig.data.model.reasoning,
-      options: parsedConfig.data.model.options,
-    },
+    model,
     agent: {
       systemPrompt: resolve(cwd, parsedConfig.data.agent.systemPrompt ?? defaultSystemPrompt),
       maxSteps: parsedConfig.data.agent.maxSteps ?? 10,

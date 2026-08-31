@@ -3,6 +3,7 @@ import type { ModelDescriptor, ModelRequest, ModelResponse } from "../model-type
 import { loadDotEnv } from "../../env.js";
 import { resolve } from "node:path";
 import { ZenAuthenticationError, ZenProviderError, redactZenSecrets } from "./zen-errors.js";
+import { resolveZenProtocol, type ZenModelRoutes } from "./zen-protocol-router.js";
 
 const defaultZenBaseUrl = "https://opencode.ai/zen/v1";
 
@@ -10,6 +11,7 @@ export interface ZenProviderOptions {
   baseUrl?: string;
   apiKey?: string;
   fetch?: typeof fetch;
+  modelRoutes?: ZenModelRoutes;
 }
 
 interface ZenModelsResponse {
@@ -25,11 +27,13 @@ export class ZenProvider implements ModelProvider {
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
   private readonly fetchImplementation: typeof fetch;
+  private readonly modelRoutes: ZenModelRoutes;
 
   constructor(options: ZenProviderOptions = {}) {
     this.baseUrl = (options.baseUrl ?? defaultZenBaseUrl).replace(/\/$/, "");
     this.apiKey = options.apiKey ?? process.env.OPENCODE_ZEN_API_KEY;
     this.fetchImplementation = options.fetch ?? fetch;
+    this.modelRoutes = options.modelRoutes ?? {};
   }
 
   async listModels(): Promise<ModelDescriptor[]> {
@@ -53,7 +57,7 @@ export class ZenProvider implements ModelProvider {
     } catch {
       throw new ZenProviderError("OpenCode Zen returned an invalid model catalog response.");
     }
-    return normalizeZenModelDescriptors(body);
+    return normalizeZenModelDescriptors(body, this.modelRoutes);
   }
 
   async generate(_request: ModelRequest): Promise<ModelResponse> {
@@ -69,7 +73,7 @@ export class ZenProvider implements ModelProvider {
   }
 }
 
-export function normalizeZenModelDescriptors(value: unknown): ModelDescriptor[] {
+export function normalizeZenModelDescriptors(value: unknown, modelRoutes: ZenModelRoutes = {}): ModelDescriptor[] {
   const data = isRecord(value) ? (value as ZenModelsResponse).data : undefined;
   if (!Array.isArray(data)) {
     throw new ZenProviderError("OpenCode Zen returned an invalid model catalog response.");
@@ -82,7 +86,10 @@ export function normalizeZenModelDescriptors(value: unknown): ModelDescriptor[] 
     const metadata: Record<string, unknown> = {};
     if (typeof entry.owned_by === "string") metadata.ownedBy = entry.owned_by;
     if (typeof entry.created === "number") metadata.created = entry.created;
-    descriptors.push({ id: entry.id, provider: "zen", ...(Object.keys(metadata).length > 0 ? { metadata } : {}) });
+    const protocol = resolveZenProtocol(entry.id, modelRoutes);
+    metadata.protocol = protocol ?? "unknown";
+    metadata.routingStatus = protocol ? "supported" : "discovered/unroutable";
+    descriptors.push({ id: entry.id, provider: "zen", metadata });
   }
   return descriptors;
 }

@@ -1,6 +1,7 @@
 import type { ModelProvider } from "./model-provider.js";
 import { OllamaProvider, type OllamaProviderOptions } from "./ollama/ollama-provider.js";
 import { ZenProvider, type ZenProviderOptions } from "./zen/zen-provider.js";
+import type { ZenModelRoutes } from "./zen/zen-protocol-router.js";
 
 export type ProviderConfig = {
   provider: "ollama";
@@ -10,6 +11,7 @@ export type ProviderConfig = {
   provider: "zen";
   baseUrl: string;
   name: string;
+  modelRoutes: ZenModelRoutes;
 };
 
 export class ProviderRegistry {
@@ -24,6 +26,7 @@ export class ProviderRegistry {
       case "zen":
         return new ZenProvider({
           baseUrl: config.baseUrl,
+          modelRoutes: config.modelRoutes,
           ...(options.fetch ? { fetch: options.fetch } : {}),
         });
     }

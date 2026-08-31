@@ -64,7 +64,14 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     const provider = providerRegistry.create(config.model);
     if (!provider.listModels) throw new ConfigError(`Provider ${provider.id} does not support model discovery.`);
     const models = await provider.listModels();
-    for (const model of models) console.log(model.id);
+    if (provider.id === "zen") {
+      console.log("MODEL\tPROTOCOL\tSTATUS");
+      for (const model of models) {
+        console.log(`${model.id}\t${model.metadata?.protocol ?? "unknown"}\t${model.metadata?.routingStatus ?? "discovered/unroutable"}`);
+      }
+    } else {
+      for (const model of models) console.log(model.id);
+    }
     return;
   }
   const prompt = arguments_._.map(String).join(" ");

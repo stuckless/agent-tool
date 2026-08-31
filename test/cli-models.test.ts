@@ -18,7 +18,7 @@ describe("agent-tool models", () => {
     const configPath = join(directory, "agent.config.json");
     await writeFile(configPath, JSON.stringify({ model: { provider: "zen", name: "unused" }, providers: { zen: { baseUrl: "https://zen.test/zen/v1" } } }));
     vi.stubEnv("OPENCODE_ZEN_API_KEY", "cli-test-key");
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: "gpt-test" }] }), { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: "gpt-test" }, { id: "new-model-x" }] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const output = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
@@ -28,6 +28,8 @@ describe("agent-tool models", () => {
       method: "GET",
       headers: { authorization: "Bearer cli-test-key" },
     });
-    expect(output).toHaveBeenCalledWith("gpt-test");
+    expect(output).toHaveBeenNthCalledWith(1, "MODEL\tPROTOCOL\tSTATUS");
+    expect(output).toHaveBeenNthCalledWith(2, "gpt-test\topenai-responses\tsupported");
+    expect(output).toHaveBeenNthCalledWith(3, "new-model-x\tunknown\tdiscovered/unroutable");
   });
 });

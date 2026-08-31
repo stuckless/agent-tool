@@ -95,4 +95,44 @@ OPENCODE_ZEN_API_KEY=... node dist/cli.js models --provider zen
 
 ## Next phase
 
-Phase Z3 — Zen protocol router. Do not begin it until explicitly requested.
+Phase Z4 — OpenAI-compatible Chat Completions adapter. Do not begin it until explicitly requested.
+
+## Phase Z3 — Zen protocol router
+
+**Status:** Complete.
+
+Delivered:
+
+- isolated Zen protocol resolution in `../../src/model/zen/zen-protocol-router.ts`, using the documented config-override, exact-route, family-route, then unknown order
+- documented family mappings for Responses, Anthropic Messages, OpenAI-compatible Chat Completions, and Google Generative models
+- `providers.zen.modelRoutes` configuration that is passed through provider construction without embedding routing rules in configuration parsing or CLI logic
+- Zen catalog descriptors now include safe protocol and routing-status metadata
+- `agent-tool models --provider zen` emits a `MODEL`, `PROTOCOL`, and `STATUS` table, clearly marking unknown catalog entries as `discovered/unroutable`
+- offline tests for all documented families, configured-route precedence, unknown models, prefix boundary/collision behavior, and routed plus unroutable CLI output
+
+Scope preserved:
+
+- Zen inference remains unavailable; no protocol adapter, request, tool, streaming, fallback, retry, or model-selection behavior was added.
+- No network requests are used to infer a model protocol.
+- No API key or Authorization value is added to configuration, output, fixtures, or routing metadata.
+
+Verification completed:
+
+```text
+npm test          # 77 passed, 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+git diff --check
+```
+
+The safe manual CLI path remains available without a credential:
+
+```bash
+cd /tmp && node /home/sls/git/agent-tool/dist/cli.js models --provider zen
+```
+
+It fails before any Zen fetch with the existing missing-credential message. A live catalog listing remains manual and opt-in:
+
+```bash
+OPENCODE_ZEN_API_KEY=... node dist/cli.js models --provider zen
+```
