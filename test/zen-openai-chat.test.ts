@@ -104,11 +104,11 @@ describe("Zen OpenAI-compatible Chat Completions", () => {
 
   it("fails clearly for Zen models without the openai-chat protocol", async () => {
     const fetchMock = vi.fn();
-    const provider = new ZenProvider({ apiKey: "test-key", model: "gpt-test", fetch: fetchMock });
+    const provider = new ZenProvider({ apiKey: "test-key", model: "claude-test", fetch: fetchMock });
 
     await expect(provider.generate({ ...defaultRequest, messages: [], tools: [] })).rejects.toEqual(expect.objectContaining({
       name: "ZenProviderError",
-      message: expect.stringContaining("routed to openai-responses"),
+      message: expect.stringContaining("routed to anthropic-messages"),
     }));
     expect(fetchMock).not.toHaveBeenCalled();
   });

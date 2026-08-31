@@ -59,7 +59,9 @@ export class LiveLogger implements AgentTracer {
     return this.safe({
       ...rest,
       ...(reasoning === undefined ? {} : {
-        reasoning: this.options.showThinking ? reasoning : { exposed: true, ...(reasoning.text === undefined ? {} : { characters: reasoning.text.length }) },
+        reasoning: this.options.showThinking
+          ? { ...(reasoning.text === undefined ? {} : { text: reasoning.text }), ...(reasoning.metadata === undefined ? {} : { opaqueState: true }) }
+          : { exposed: true, ...(reasoning.text === undefined ? {} : { characters: reasoning.text.length }) },
       }),
     });
   }

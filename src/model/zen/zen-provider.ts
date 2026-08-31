@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { ZenAuthenticationError, ZenProviderError, redactZenSecrets } from "./zen-errors.js";
 import { resolveZenProtocol, type ZenModelRoutes } from "./zen-protocol-router.js";
 import { ZenOpenAiChatAdapter } from "./adapters/zen-openai-chat.js";
+import { ZenOpenAiResponsesAdapter } from "./adapters/zen-openai-responses.js";
 
 const defaultZenBaseUrl = "https://opencode.ai/zen/v1";
 
@@ -66,6 +67,13 @@ export class ZenProvider implements ModelProvider {
   async generate(request: ModelRequest): Promise<ModelResponse> {
     if (!this.model) throw new ZenProviderError("Zen inference requires a model name.");
     const protocol = resolveZenProtocol(this.model, this.modelRoutes);
+    if (protocol === "openai-responses") {
+      return new ZenOpenAiResponsesAdapter({
+        model: this.model,
+        baseUrl: this.baseUrl,
+        fetch: (input, init) => this.fetchZen(input instanceof Request ? input.url : input.toString(), init ?? {}),
+      }).generate(request);
+    }
     if (protocol !== "openai-chat") {
       const routedProtocol = protocol ?? "unknown";
       throw new ZenProviderError(`Zen model \"${this.model}\" is routed to ${routedProtocol}, but no adapter for that Zen protocol is implemented.`);

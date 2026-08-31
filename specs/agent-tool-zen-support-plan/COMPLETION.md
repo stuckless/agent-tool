@@ -171,6 +171,45 @@ OPENCODE_ZEN_API_KEY=... node dist/cli.js --provider zen --model <chat-model> "W
 OPENCODE_ZEN_API_KEY=... node dist/cli.js --provider zen --model <chat-model> "Use the test tool and report its result."
 ```
 
+## Phase Z5 — OpenAI Responses adapter
+
+**Status:** Complete.
+
+Delivered:
+
+- `../../src/model/zen/adapters/zen-openai-responses.ts`, a narrow non-streaming `/responses` adapter using `@ai-sdk/openai` behind the existing normalized model/provider boundary
+- normalized system, user, assistant, tool, text, tool-call, finish-reason, and usage mapping for Zen Responses models
+- opaque Responses continuation state on normalized assistant metadata: response IDs and response item IDs are retained without being inspected by the agent; a later tool turn sends only the correlated tool output with `previous_response_id`
+- exact provider tool-call IDs and returned tool-call ordering are preserved; dotted MCP names are reversibly converted to Responses-safe function names at this protocol boundary and restored before the unchanged agent loop executes them
+- existing centralized Zen base URL, Authorization construction, credential redaction, safe HTTP/transport errors, and safe `provider/model/protocol` trace metadata
+- explicit Zen Responses reasoning modes fail clearly because the Zen catalog does not document per-model reasoning capabilities; `provider-default` remains unchanged rather than inferring support from a model name
+- offline fixture/fetch tests for requests/tools, response mapping, opaque continuation and correlated tool output, reasoning behavior, redaction, registry routing, unsupported protocols, invalid responses, and namespaced MCP tool mapping
+
+Scope preserved:
+
+- No Anthropic, Gemini, streaming, automatic model selection, fallbacks, retries, persistent catalogs, or Z6+ functionality was added.
+- Ollama and the existing OpenAI-compatible Chat Completions adapter retain their behavior. The Chat test for an unsupported protocol now uses an actually unsupported (Anthropic) route because Responses is implemented.
+- The project-owned agent loop remains the only agent loop; no AI SDK agent abstraction or external agent framework was introduced.
+
+Verification completed:
+
+```text
+npm test          # 95 passed, 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+git diff --check
+```
+
+Live verification completed with the locally configured Zen credential:
+
+```text
+node dist/cli.js models --provider zen
+node dist/cli.js --provider zen --model gpt-5.6-luna --max-steps 1 "What is 2 + 2? Answer briefly."  # 4
+node dist/cli.js --config examples/demo-mcp.config.json --provider zen --model gpt-5.6-luna "Use demo.lookup_demo_record with key mcp and explain the result briefly."
+```
+
+The live MCP result correctly reported that MCP servers expose tools which agent-tool routes through one normalized registry. Normal tests remain fully offline and credential-free.
+
 ## Next phase
 
-Phase Z5 — OpenAI Responses adapter. Do not begin it until explicitly requested.
+Phase Z6 — Anthropic Messages adapter. Do not begin it until explicitly requested.
