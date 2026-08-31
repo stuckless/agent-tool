@@ -31,11 +31,15 @@ describe("TraceRecorder", () => {
       step: 1,
       toolCalls: 1,
       reasoningPresent: true,
+      durationMs: 9,
+      finishReason: "tool_calls",
+      usage: { promptTokens: 10, completionTokens: 2 },
+      providerMetadata: { provider: "zen", model: "deepseek-test", protocol: "openai-chat", authorization: "secret" },
       message: { role: "assistant", content: "", reasoning: { text: "private reasoning" }, toolCalls: [{ id: "call-1", name: "echo", arguments: { apiKey: "secret", value: "hello" } }] },
     });
     tracer.trace({ type: "tool.call", step: 1, toolCall: { id: "call-1", name: "echo", arguments: { apiKey: "secret", value: "hello" } } });
     tracer.trace({ type: "tool.result", step: 1, toolCallId: "call-1", name: "echo", ok: true, payload: { value: "hello" }, durationMs: 7 });
-    tracer.trace({ type: "model.response", step: 2, toolCalls: 0, reasoningPresent: false, message: { role: "assistant", content: "Done." } });
+    tracer.trace({ type: "model.response", step: 2, toolCalls: 0, reasoningPresent: false, durationMs: 8, message: { role: "assistant", content: "Done." } });
     tracer.trace({ type: "run.complete", step: 2, answer: "Done." });
 
     const json = tracer.toJson();
@@ -50,6 +54,7 @@ describe("TraceRecorder", () => {
     });
     expect(json.steps.map((event) => event.type)).toEqual(["model.request", "model.response", "tool.call", "tool.result", "model.response", "run.complete"]);
     expect(json.steps[1]).toMatchObject({ reasoning: { exposed: true, characters: 17 } });
+    expect(json.steps[1]).toMatchObject({ durationMs: 9, finishReason: "tool_calls", usage: { promptTokens: 10, completionTokens: 2 }, providerMetadata: { provider: "zen", authorization: "[REDACTED]" } });
     expect(JSON.stringify(json)).not.toContain("private reasoning");
     expect(JSON.stringify(json)).toContain("[REDACTED]");
     expect(tracer.toHuman()).toContain("thinking exposed: yes (17 chars)");
@@ -59,7 +64,7 @@ describe("TraceRecorder", () => {
     const tracer = new TraceRecorder({
       model: "fake-model", reasoning: { mode: "enabled" }, modelOptions: {}, promptPath: "prompt.md", promptContent: "Use tools.", skills: [], tools: [], showThinking: true, now: () => 0,
     });
-    tracer.trace({ type: "model.response", step: 1, toolCalls: 0, reasoningPresent: true, message: { role: "assistant", content: "Answer", reasoning: { text: "exposed text" } } });
+    tracer.trace({ type: "model.response", step: 1, toolCalls: 0, reasoningPresent: true, durationMs: 0, message: { role: "assistant", content: "Answer", reasoning: { text: "exposed text" } } });
 
     expect(tracer.toJson().steps[0]).toMatchObject({ reasoning: { text: "exposed text" } });
     expect(tracer.toHuman()).toContain("thinking: exposed text");

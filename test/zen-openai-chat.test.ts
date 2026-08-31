@@ -49,6 +49,7 @@ describe("Zen OpenAI-compatible Chat Completions", () => {
       ] },
       finishReason: "tool_calls",
       usage: { promptTokens: 12, completionTokens: 4 },
+      providerMetadata: { provider: "zen", model: "deepseek-test", protocol: "openai-chat" },
     });
   });
 
@@ -70,6 +71,16 @@ describe("Zen OpenAI-compatible Chat Completions", () => {
       { role: "assistant", content: null, tool_calls: [{ id: "call-abc", type: "function", function: { name: "lookup", arguments: "{\"key\":\"answer\"}" } }] },
       { role: "tool", tool_call_id: "call-abc", content: "42" },
     ]);
+  });
+
+  it("maps supported reasoning effort and rejects an unmappable generic enabled mode", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 }));
+    const provider = new ZenProvider({ apiKey: "test-key", model: "deepseek-test", fetch: fetchMock });
+
+    await provider.generate({ ...defaultRequest, reasoning: { mode: "effort", effort: "high" }, messages: [], tools: [] });
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)).toMatchObject({ reasoning_effort: "high" });
+    await expect(provider.generate({ ...defaultRequest, reasoning: { mode: "enabled" }, messages: [], tools: [] })).rejects.toThrow("cannot map generic reasoning mode enabled");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("maps authentication and transport failures without leaking credentials", async () => {

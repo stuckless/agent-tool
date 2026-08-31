@@ -41,6 +41,7 @@ export class Agent {
 
     for (let step = 1; step <= this.maxSteps; step += 1) {
       this.options.tracer?.trace({ type: "model.request", step, messages: structuredClone(messages) });
+      const modelStartedAt = Date.now();
       const response = await this.options.model.generate({
         messages,
         tools: catalog.definitions(),
@@ -54,6 +55,10 @@ export class Agent {
         message: response.message,
         toolCalls: toolCalls.length,
         reasoningPresent: response.message.reasoning !== undefined,
+        durationMs: Date.now() - modelStartedAt,
+        ...(response.finishReason === undefined ? {} : { finishReason: response.finishReason }),
+        ...(response.usage === undefined ? {} : { usage: response.usage }),
+        ...(response.providerMetadata === undefined ? {} : { providerMetadata: response.providerMetadata }),
       });
 
       messages.push(response.message);

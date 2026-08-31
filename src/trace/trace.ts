@@ -92,6 +92,10 @@ export class TraceRecorder implements AgentTracer {
           step: event.step,
           atMs,
           toolCalls: event.toolCalls,
+          durationMs: event.durationMs,
+          ...(event.finishReason === undefined ? {} : { finishReason: event.finishReason }),
+          ...(event.usage === undefined ? {} : { usage: event.usage }),
+          ...(event.providerMetadata === undefined ? {} : { providerMetadata: this.redact(event.providerMetadata) }),
           content: this.redact(event.message.content),
           reasoning: {
             exposed: event.reasoningPresent,
@@ -178,6 +182,10 @@ function formatEvent(event: TraceEventRecord): string[] {
   if (event.type === "model.response") {
     const reasoning = event.reasoning as { exposed: boolean; characters?: number; text?: string };
     const lines = [heading, `  model → ${(event.toolCalls as number) > 0 ? "tool call" : "final answer"}`];
+    lines.push(`  duration: ${event.durationMs} ms`);
+    if (event.finishReason !== undefined) lines.push(`  finish reason: ${event.finishReason}`);
+    if (event.usage !== undefined) lines.push(`  usage: ${JSON.stringify(event.usage)}`);
+    if (event.providerMetadata !== undefined) lines.push(`  provider: ${JSON.stringify(event.providerMetadata)}`);
     lines.push(`  thinking exposed: ${reasoning.exposed ? `yes${reasoning.characters === undefined ? "" : ` (${reasoning.characters} chars)`}` : "no"}`);
     if (reasoning.text !== undefined) lines.push(`  thinking: ${reasoning.text}`);
     if ((event.content as string).length > 0) lines.push(`  content: ${event.content}`);

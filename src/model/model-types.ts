@@ -57,6 +57,8 @@ export interface ModelResponse {
     promptTokens?: number;
     completionTokens?: number;
   };
+  /** Safe diagnostic fields only; agent control flow must not depend on them. */
+  providerMetadata?: Record<string, unknown>;
 }
 
 /** A provider-neutral model entry returned by a provider catalog. */

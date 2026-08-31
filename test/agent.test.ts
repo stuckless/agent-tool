@@ -41,6 +41,9 @@ describe("Agent", () => {
           reasoning: { text: "Use the current value.", metadata: { opaque: "state" } },
           toolCalls: [{ id: "call-1", name: "get_current_test_value", arguments: {} }],
         },
+        finishReason: "tool_calls",
+        usage: { promptTokens: 12, completionTokens: 4 },
+        providerMetadata: { provider: "zen", model: "deepseek-test", protocol: "openai-chat" },
       },
       { message: { role: "assistant", content: "The current value is bluebird." } },
     ]);
@@ -86,6 +89,12 @@ describe("Agent", () => {
       "model.response",
       "run.complete",
     ]);
+    expect(events[2]).toMatchObject({
+      type: "model.response",
+      finishReason: "tool_calls",
+      usage: { promptTokens: 12, completionTokens: 4 },
+      providerMetadata: { provider: "zen", model: "deepseek-test", protocol: "openai-chat" },
+    });
   });
 
   it("returns safe tool errors to the model and lets it recover", async () => {

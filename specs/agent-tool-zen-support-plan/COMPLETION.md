@@ -143,27 +143,28 @@ Delivered:
 
 - `../../src/model/zen/adapters/zen-openai-chat.ts`, a narrow adapter for Zen's `/zen/v1/chat/completions` endpoint using `@ai-sdk/openai-compatible` behind the existing normalized model, message, tool, and tool-result contract
 - request mapping for system/user/assistant/tool messages, OpenAI-compatible function tools, assistant tool-call replay, and correlated tool results
-- response normalization for text, ordered tool calls and IDs, finish reasons, and prompt/completion usage metadata
+- response normalization for text, ordered tool calls and IDs, finish reasons, and prompt/completion usage metadata; safe provider/model/protocol metadata and per-request duration are included in traces
 - Zen provider selection through the existing Z3 protocol router; only models routed to `openai-chat` invoke the adapter, while other or unknown protocols fail before a network call with a clear routing error
 - centralized Zen base-URL and Authorization construction in `ZenProvider`, shared by model discovery and the chat adapter; authentication, transport, and invalid-response errors are credential-redacted
 - offline adapter tests using fake `fetch` responses, including request mapping, tool-result continuation, response mapping, safe authentication/transport failures, registry routing, and unsupported protocol behavior
 
 Scope preserved:
 
-- Added the `ai` core package and `@ai-sdk/openai-compatible`. The adapter uses the provider's low-level non-streaming `doGenerate()` operation only; the project-owned agent loop remains unchanged.
+- Added direct `@ai-sdk/openai-compatible` and `@ai-sdk/provider` dependencies. The adapter uses the provider's low-level non-streaming `doGenerate()` operation only; the project-owned agent loop remains unchanged.
+- Normalized Zen reasoning is passed to the AI SDK for disabled and explicit effort modes (`max` maps to `xhigh`). The ambiguous generic `enabled` mode fails clearly instead of being silently dropped.
 - No Responses, Anthropic, Gemini, streaming, auto-selection, fallback, retry, persistent catalog, or Z5+ behavior was added.
 - Ollama remains unchanged and continues to use its existing provider implementation.
 
 Verification completed:
 
 ```text
-npm test          # 84 passed, 1 opt-in stdio test skipped
+npm test          # 85 passed, 1 opt-in stdio test skipped
 npm run typecheck
 npm run build
 git diff --check
 ```
 
-Normal tests remain credential-free and offline. A compiled CLI smoke invocation selected the chat adapter but could not reach Zen from this environment, returning the sanitized `Could not reach OpenCode Zen: fetch failed` error. A successful live multi-turn interaction therefore remains an opt-in acceptance check. After setting a real key and selecting a currently routed chat model, run:
+Normal tests remain credential-free and offline. The user subsequently confirmed a successful manual Zen chat-completions invocation. This verifies live text generation; a live multi-turn tool or MCP interaction remains an opt-in acceptance check unless separately confirmed. After setting a real key and selecting a currently routed chat model, run:
 
 ```bash
 OPENCODE_ZEN_API_KEY=... node dist/cli.js --provider zen --model <chat-model> "What is 2+2?"

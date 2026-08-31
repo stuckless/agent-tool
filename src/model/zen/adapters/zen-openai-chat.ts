@@ -37,7 +37,7 @@ export class ZenOpenAiChatAdapter {
         fetch: this.fetchImplementation,
       });
       const result = await zen.chatModel(this.model).doGenerate(toAiSdkRequest(request));
-      return normalizeAiSdkResponse(result);
+      return normalizeAiSdkResponse(result, this.model);
     } catch (error) {
       if (error instanceof ZenProviderError) throw error;
       if (statusCode(error) === 401 || statusCode(error) === 403) throw new ZenAuthenticationError();
@@ -52,10 +52,11 @@ export function toAiSdkRequest(request: ModelRequest): LanguageModelV4CallOption
     prompt: request.messages.map(toAiSdkMessage),
     tools: request.tools.map(toAiSdkTool),
     ...(typeof request.options.temperature === "number" ? { temperature: request.options.temperature } : {}),
+    ...toAiSdkReasoning(request.reasoning),
   };
 }
 
-function normalizeAiSdkResponse(result: LanguageModelV4GenerateResult): ModelResponse {
+function normalizeAiSdkResponse(result: LanguageModelV4GenerateResult, model: string): ModelResponse {
   const text = result.content.filter((part) => part.type === "text").map((part) => part.text).join("");
   return {
     message: {
@@ -69,6 +70,7 @@ function normalizeAiSdkResponse(result: LanguageModelV4GenerateResult): ModelRes
     },
     finishReason: result.finishReason.unified === "tool-calls" ? "tool_calls" : result.finishReason.unified,
     usage: { promptTokens: result.usage.inputTokens.total, completionTokens: result.usage.outputTokens.total },
+    providerMetadata: { provider: "zen", model, protocol: "openai-chat" },
   };
 }
 
@@ -95,6 +97,15 @@ function toAiSdkToolResult(message: ToolResultMessage): LanguageModelV4Prompt[nu
 
 function toAiSdkTool(tool: ModelToolDefinition): NonNullable<LanguageModelV4CallOptions["tools"]>[number] {
   return { type: "function", name: tool.name, description: tool.description, inputSchema: tool.inputSchema as never };
+}
+
+function toAiSdkReasoning(request: ModelRequest["reasoning"]): Pick<LanguageModelV4CallOptions, "reasoning"> {
+  switch (request.mode) {
+    case "provider-default": return { reasoning: "provider-default" };
+    case "disabled": return { reasoning: "none" };
+    case "effort": return { reasoning: request.effort === "max" ? "xhigh" : request.effort };
+    case "enabled": throw new ZenProviderError("Zen openai-chat cannot map generic reasoning mode enabled. Use an explicit --reasoning effort or default.");
+  }
 }
 
 function parseToolArguments(value: unknown): Record<string, unknown> {

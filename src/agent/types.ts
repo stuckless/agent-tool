@@ -13,6 +13,10 @@ export type AgentTraceEvent =
       message: AssistantMessage;
       toolCalls: number;
       reasoningPresent: boolean;
+      durationMs: number;
+      finishReason?: string;
+      usage?: { promptTokens?: number; completionTokens?: number };
+      providerMetadata?: Record<string, unknown>;
     }
   | { type: "tool.call"; step: number; toolCall: ModelToolCall }
   | { type: "tool.result"; step: number; toolCallId: string; name: string; ok: boolean; payload: unknown; durationMs: number }
