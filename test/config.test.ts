@@ -94,4 +94,25 @@ describe("loadConfig", () => {
     await writeFile(join(directory, "agent.config.json"), JSON.stringify({ model: { name: "test" }, tools: { discovery: { mode: "search", initialAllow: ["echo"] } } }));
     await expect(loadConfig({ cwd: directory, environment: {} })).resolves.toMatchObject({ tools: { discovery: { mode: "search", initialAllow: ["echo"] } } });
   });
+
+  it("loads Zen configuration without placing credentials in runtime config", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "agent-tool-config-"));
+    await writeFile(join(directory, "agent.config.json"), JSON.stringify({ model: { provider: "zen", name: "gpt-test" }, providers: { zen: { baseUrl: "https://zen.test/zen/v1", apiKeyEnv: "OPENCODE_ZEN_API_KEY" } } }));
+
+    await expect(loadConfig({ cwd: directory, environment: {} })).resolves.toMatchObject({
+      model: { provider: "zen", name: "gpt-test", baseUrl: "https://zen.test/zen/v1" },
+    });
+  });
+
+  it("loads .env values while allowing explicit environment values to take precedence", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "agent-tool-config-"));
+    await writeFile(join(directory, ".env"), "AGENT_MODEL=from-dotenv\nAGENT_OLLAMA_URL=http://dotenv.test:11434\n");
+
+    await expect(loadConfig({
+      cwd: directory,
+      environment: { AGENT_MODEL: "from-environment" },
+    })).resolves.toMatchObject({
+      model: { name: "from-environment", baseUrl: "http://dotenv.test:11434" },
+    });
+  });
 });

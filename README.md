@@ -66,6 +66,17 @@ Or create `agent.config.json` in the project directory:
 
 `AGENT_OLLAMA_URL` overrides the configured Ollama base URL, and `AGENT_MODEL` or `--model` override the configured model. Use `--config <path>` to load a different JSON config file or `--prompt <path>` to override the system prompt for one run.
 
+### Environment files
+
+`agent-tool` automatically reads `.env` from the working directory. This is useful for local-only values such as Zen credentials, without repeating them on the command line:
+
+```dotenv
+OPENCODE_ZEN_API_KEY="..."
+AGENT_PROVIDER=zen
+```
+
+Existing shell environment variables take precedence over `.env`. The repository already ignores `.env`; never commit it or put a real key in a config file, fixture, trace, or command output.
+
 ### Skills
 
 Skills are Markdown instruction files, not executable tools. The runtime recursively discovers `SKILL.md` files below each configured `skills.directories` path. Each file needs YAML frontmatter with `name` and `description`; `tags` is optional. Its Markdown body is placed into the system context inside visible `<skill name="...">` boundaries. The user prompt is sent unchanged.

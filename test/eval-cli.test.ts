@@ -28,7 +28,7 @@ describe("agent-eval CLI", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: { role: "assistant", content: "Hello." }, done: true }), { status: 200 })));
     const output = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    const passed = await runEvalCli(["--config", configPath, "--output", outputPath, datasetPath]);
+    const passed = await runEvalCli(["--config", configPath, "--model", "fake-model", "--output", outputPath, datasetPath]);
 
     expect(passed).toBe(true);
     const report = JSON.parse(String(output.mock.calls[0]?.[0]));
@@ -56,7 +56,7 @@ describe("agent-eval CLI", () => {
     vi.stubGlobal("fetch", fetchMock);
     const output = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    const passed = await runEvalCli(["--config", configPath, fixturePath.pathname]);
+    const passed = await runEvalCli(["--config", configPath, "--model", "fake-model", fixturePath.pathname]);
 
     expect(passed).toBe(true);
     expect(JSON.parse(String(output.mock.calls[0]?.[0]))).toMatchObject({

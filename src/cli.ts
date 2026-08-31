@@ -25,9 +25,10 @@ import { createSearchToolsTool } from "./tools/runtime.js";
 export async function runCli(argv = hideBin(process.argv)): Promise<void> {
   const arguments_ = await yargs(argv)
     .scriptName("agent-tool")
-    .usage("$0 <prompt>")
+    .usage("$0 <prompt> | $0 models")
     .option("config", { type: "string", description: "Path to a JSON configuration file." })
-    .option("model", { type: "string", description: "Override the configured Ollama model." })
+    .option("provider", { choices: ["ollama", "zen"] as const, description: "Override the configured model provider." })
+    .option("model", { type: "string", description: "Override the configured model." })
     .option("prompt", { type: "string", description: "Override the configured system prompt path." })
     .option("skill", { type: "string", array: true, nargs: 1, description: "Load one named skill; repeatable." })
     .option("skills", { choices: ["all", "none", "progressive"] as const, description: "Load all, no, or progressively disclosed skills." })
@@ -40,21 +41,33 @@ export async function runCli(argv = hideBin(process.argv)): Promise<void> {
     .option("trace-json", { type: "boolean", default: false, description: "Write a JSON run trace to stderr." })
     .option("log", { type: "boolean", default: false, description: "Write live, color-coded agent events to stderr." })
     .option("show-thinking", { type: "boolean", default: false, description: "With --log or tracing, include provider-exposed thinking text." })
-    .demandCommand(1, "Provide a prompt.")
-    .strict()
+    .strictOptions()
     .help()
     .parse();
 
-  const prompt = arguments_._.map(String).join(" ");
+  const command = String(arguments_._[0] ?? "");
+  const isModelsCommand = command === "models";
+  if (arguments_._.length === 0) throw new ConfigError("Provide a prompt or use the models command.");
   if (arguments_.trace && arguments_["trace-json"]) {
     throw new ConfigError("--trace cannot be combined with --trace-json.");
   }
   const requestedSkillNames = arguments_.skill ?? [];
   const config = await loadConfig({
     configPath: arguments_.config,
+    provider: arguments_.provider,
     modelName: arguments_.model,
+    allowMissingModel: isModelsCommand,
     reasoning: arguments_.reasoning ? parseReasoningOption(arguments_.reasoning) : undefined,
   });
+  if (isModelsCommand) {
+    if (arguments_._.length !== 1) throw new ConfigError("The models command does not accept a prompt.");
+    const provider = providerRegistry.create(config.model);
+    if (!provider.listModels) throw new ConfigError(`Provider ${provider.id} does not support model discovery.`);
+    const models = await provider.listModels();
+    for (const model of models) console.log(model.id);
+    return;
+  }
+  const prompt = arguments_._.map(String).join(" ");
   if (requestedSkillNames.length > 0 && arguments_.skills === "all") {
     throw new ConfigError("--skill cannot be combined with --skills all.");
   }

@@ -26,10 +26,6 @@ The documented remote Ollama smoke check completed successfully with `granite4.2
 
 No provider refactor or Zen code was added. The repository remains on its existing `main` branch; Phase Z0 did not require creating a feature branch.
 
-## Next phase
-
-Phase Z2 — Zen provider shell + authentication + discovery. Do not begin it until explicitly requested.
-
 ## Phase Z1 — Introduce ModelProvider boundary
 
 **Status:** Complete.
@@ -60,3 +56,43 @@ AGENT_OLLAMA_URL=http://192.168.11.10:11434 AGENT_MODEL=granite4.2:8b node dist/
 ```
 
 No Zen protocol, credential, routing, discovery, streaming, or other Z2+ functionality was added.
+
+## Phase Z2 — Zen provider shell + authentication + discovery
+
+**Status:** Complete.
+
+Delivered:
+
+- `ZenProvider` model discovery using `GET /zen/v1/models` through Node's built-in `fetch`
+- `OPENCODE_ZEN_API_KEY` validation before any Zen request, with a clear configuration error when absent
+- provider-neutral Zen `ModelDescriptor` normalization from the catalog response
+- explicit `zen` registry entry and Zen configuration (`model.provider`, `providers.zen.baseUrl`, and CLI `--provider`)
+- `agent-tool models --provider zen`, which lists discovered model IDs without requiring a selected inference model
+- safe Zen error types/redaction for credentials, Authorization values, transport errors, and HTTP authentication failures
+
+Scope preserved:
+
+- Zen discovery intentionally remains separate from protocol routing.
+- `ZenProvider.generate()` only reports that a protocol adapter is not configured; no inference, routing, protocol adapter, tool mapping, streaming, fallback, or persistent catalog behavior was added.
+- API keys are read only from `OPENCODE_ZEN_API_KEY`; they are not stored in runtime config, traces, fixtures, or output.
+
+Verification completed:
+
+```text
+npm test          # 58 passed, 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+node dist/cli.js --help
+node dist/cli.js models --provider zen  # safe missing-model/credential path checked
+git diff --check
+```
+
+The normal test suite uses fixtures and fetch mocks only; it does not require Zen connectivity or credentials. A live catalog check remains manual and opt-in:
+
+```bash
+OPENCODE_ZEN_API_KEY=... node dist/cli.js models --provider zen
+```
+
+## Next phase
+
+Phase Z3 — Zen protocol router. Do not begin it until explicitly requested.

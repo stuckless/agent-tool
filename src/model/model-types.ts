@@ -58,3 +58,11 @@ export interface ModelResponse {
     completionTokens?: number;
   };
 }
+
+/** A provider-neutral model entry returned by a provider catalog. */
+export interface ModelDescriptor {
+  id: string;
+  provider: "ollama" | "zen";
+  displayName?: string;
+  metadata?: Record<string, unknown>;
+}

@@ -1,0 +1,7 @@
+{
+  "object": "list",
+  "data": [
+    { "id": "gpt-test", "object": "model", "owned_by": "openai", "created": 123 },
+    { "id": "deepseek-test", "object": "model", "owned_by": "deepseek" }
+  ]
+}

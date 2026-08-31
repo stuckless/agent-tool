@@ -3,15 +3,18 @@ import { resolve } from "node:path";
 
 import { z } from "zod";
 
+import { loadDotEnv } from "./env.js";
 import type { ReasoningConfig } from "./model/types.js";
+import type { ProviderConfig } from "./model/provider-registry.js";
 
 const defaultOllamaBaseUrl = "http://localhost:11434";
+const defaultZenBaseUrl = "https://opencode.ai/zen/v1";
 const defaultSystemPrompt = "./prompts/minimal.md";
 
 const rawConfigSchema = z.object({
   model: z
     .object({
-      provider: z.literal("ollama").default("ollama"),
+      provider: z.enum(["ollama", "zen"]).default("ollama"),
       baseUrl: z.string().url().optional(),
       name: z.string().min(1).optional(),
       reasoning: z
@@ -25,6 +28,12 @@ const rawConfigSchema = z.object({
       options: z.record(z.string(), z.unknown()).default({}),
     })
     .default({ provider: "ollama", reasoning: { mode: "provider-default" }, options: {} }),
+  providers: z.object({
+    zen: z.object({
+      baseUrl: z.string().url().optional(),
+      apiKeyEnv: z.literal("OPENCODE_ZEN_API_KEY").optional(),
+    }).default({}),
+  }).default({ zen: {} }),
   agent: z
     .object({
       systemPrompt: z.string().min(1).optional(),
@@ -82,10 +91,7 @@ export interface SkillsConfig {
 }
 
 export interface RuntimeConfig {
-  model: {
-    provider: "ollama";
-    baseUrl: string;
-    name: string;
+  model: ProviderConfig & {
     reasoning: ReasoningConfig;
     options: Record<string, unknown>;
   };
@@ -101,7 +107,9 @@ export interface RuntimeConfig {
 export interface LoadConfigOptions {
   cwd?: string;
   configPath?: string;
+  provider?: "ollama" | "zen";
   modelName?: string;
+  allowMissingModel?: boolean;
   reasoning?: ReasoningConfig;
   environment?: NodeJS.ProcessEnv;
 }
@@ -115,7 +123,14 @@ export class ConfigError extends Error {
 
 export async function loadConfig(options: LoadConfigOptions = {}): Promise<RuntimeConfig> {
   const cwd = options.cwd ?? process.cwd();
-  const environment = options.environment ?? process.env;
+  const processEnvironment = options.environment ?? { ...process.env };
+  let dotenvEnvironment: Record<string, string>;
+  try {
+    dotenvEnvironment = await loadDotEnv(resolve(cwd, ".env"));
+  } catch (error) {
+    throw new ConfigError(error instanceof Error ? error.message : "Could not read .env file.");
+  }
+  const environment = { ...dotenvEnvironment, ...processEnvironment };
   const configPath = options.configPath ? resolve(cwd, options.configPath) : resolve(cwd, "agent.config.json");
   const isExplicitConfig = options.configPath !== undefined;
   const rawConfig = await readConfigFile(configPath, isExplicitConfig);
@@ -125,21 +140,24 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Runti
     throw new ConfigError(`Invalid configuration in ${configPath}: ${parsedConfig.error.issues[0]?.message ?? "unknown error"}`);
   }
 
+  const provider = options.provider ?? parseProvider(environment.AGENT_PROVIDER) ?? parsedConfig.data.model.provider;
   const modelName = options.modelName ?? environment.AGENT_MODEL ?? parsedConfig.data.model.name;
-  if (!modelName) {
+  if (!modelName && !options.allowMissingModel) {
     throw new ConfigError("Missing model name. Set model.name in agent.config.json, use --model, or set AGENT_MODEL.");
   }
 
-  const baseUrl = environment.AGENT_OLLAMA_URL ?? parsedConfig.data.model.baseUrl ?? defaultOllamaBaseUrl;
+  const baseUrl = provider === "zen"
+    ? environment.OPENCODE_ZEN_BASE_URL ?? parsedConfig.data.providers.zen.baseUrl ?? defaultZenBaseUrl
+    : environment.AGENT_OLLAMA_URL ?? parsedConfig.data.model.baseUrl ?? defaultOllamaBaseUrl;
   if (!isHttpUrl(baseUrl)) {
-    throw new ConfigError("Ollama base URL must be an http or https URL.");
+    throw new ConfigError(`${provider === "zen" ? "Zen" : "Ollama"} base URL must be an http or https URL.`);
   }
 
   return {
     model: {
-      provider: "ollama",
+      provider,
       baseUrl: baseUrl.replace(/\/$/, ""),
-      name: modelName,
+      name: modelName ?? "",
       reasoning: options.reasoning ?? parsedConfig.data.model.reasoning,
       options: parsedConfig.data.model.options,
     },
@@ -154,6 +172,12 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Runti
     mcpServers: parsedConfig.data.mcpServers,
     tools: parsedConfig.data.tools,
   };
+}
+
+function parseProvider(value: string | undefined): "ollama" | "zen" | undefined {
+  if (value === undefined) return undefined;
+  if (value === "ollama" || value === "zen") return value;
+  throw new ConfigError("AGENT_PROVIDER must be either ollama or zen.");
 }
 
 async function readConfigFile(configPath: string, isExplicitConfig: boolean): Promise<unknown> {
