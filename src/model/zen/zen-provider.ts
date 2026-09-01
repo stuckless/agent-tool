@@ -6,6 +6,7 @@ import { ZenAuthenticationError, ZenProviderError, redactZenSecrets } from "./ze
 import { resolveZenProtocol, type ZenModelRoutes } from "./zen-protocol-router.js";
 import { ZenOpenAiChatAdapter } from "./adapters/zen-openai-chat.js";
 import { ZenOpenAiResponsesAdapter } from "./adapters/zen-openai-responses.js";
+import { ZenAnthropicMessagesAdapter } from "./adapters/zen-anthropic-messages.js";
 
 const defaultZenBaseUrl = "https://opencode.ai/zen/v1";
 
@@ -74,6 +75,13 @@ export class ZenProvider implements ModelProvider {
         fetch: (input, init) => this.fetchZen(input instanceof Request ? input.url : input.toString(), init ?? {}),
       }).generate(request);
     }
+    if (protocol === "anthropic-messages") {
+      return new ZenAnthropicMessagesAdapter({
+        model: this.model,
+        baseUrl: this.baseUrl,
+        fetch: (input, init) => this.fetchZen(input instanceof Request ? input.url : input.toString(), init ?? {}),
+      }).generate(request);
+    }
     if (protocol !== "openai-chat") {
       const routedProtocol = protocol ?? "unknown";
       throw new ZenProviderError(`Zen model \"${this.model}\" is routed to ${routedProtocol}, but no adapter for that Zen protocol is implemented.`);
@@ -96,9 +104,15 @@ export class ZenProvider implements ModelProvider {
   private async fetchZen(url: string, init: RequestInit): Promise<Response> {
     const apiKey = await this.requireApiKey();
     try {
+      const headers = Object.fromEntries(new Headers(init.headers).entries());
+      headers.authorization = `Bearer ${apiKey}`;
+      // The Anthropic Messages protocol uses x-api-key. Keep the credential
+      // substitution at this shared Zen transport boundary, so adapters never
+      // receive or trace the secret themselves.
+      if ("x-api-key" in headers) headers["x-api-key"] = apiKey;
       return await this.fetchImplementation(url.startsWith("http") ? url : `${this.baseUrl}${url}`, {
         ...init,
-        headers: { ...init.headers, authorization: `Bearer ${apiKey}` },
+        headers,
       });
     } catch (error) {
       throw new ZenProviderError(redactZenSecrets(`Could not reach OpenCode Zen: ${errorMessage(error)}`, [apiKey]));

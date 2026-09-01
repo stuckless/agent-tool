@@ -210,6 +210,51 @@ node dist/cli.js --config examples/demo-mcp.config.json --provider zen --model g
 
 The live MCP result correctly reported that MCP servers expose tools which agent-tool routes through one normalized registry. Normal tests remain fully offline and credential-free.
 
+## Phase Z6 — Anthropic Messages adapter
+
+**Status:** Complete.
+
+Delivered:
+
+- `../../src/model/zen/adapters/zen-anthropic-messages.ts`, a narrow non-streaming `/messages` adapter using `@ai-sdk/anthropic` behind the existing normalized model/provider boundary
+- an `anthropic-messages` branch in `ZenProvider`, using the existing Z3 router and centralized Zen base URL, centralized Bearer and Anthropic `x-api-key` credential injection, credential redaction, and safe errors
+- request mapping for normalized system, user, assistant, tool, function-tool, tool-use, and tool-result messages
+- response normalization for text, ordered tool uses and exact IDs, finish reasons, usage, and safe `provider/model/protocol` trace metadata
+- opaque Anthropic thinking continuation metadata, including provider signatures/redacted-thinking state, replayed only by the adapter and not interpreted or printed by the agent loop
+- reversible conversion of dotted/namespaced MCP names to Anthropic-safe function names, with collision detection and restoration before the normal tool registry executes calls
+- documented disabled Anthropic thinking mapping; provider-default is unchanged, while enabled/effort requests fail clearly because Zen does not publish per-model thinking capability/budget metadata
+- direct `@ai-sdk/anthropic` dependency declaration and offline fetch-fixture tests for request/response mapping, multi-tool continuation, thinking state, reasoning behavior, redaction, routing, unsupported protocols, and namespaced tools
+
+Scope preserved:
+
+- No Gemini, streaming, automatic selection, fallback, retry, persistent catalog, eval expansion, or Z7+ behavior was added.
+- The project-owned agent loop is unchanged. Ollama, Z4 OpenAI-compatible Chat, and Z5 OpenAI Responses behavior remain covered by the normal suite.
+- The two prior tests that used Anthropic merely as an unimplemented-protocol fixture now use the still-unimplemented Google route, preserving meaningful unsupported-protocol coverage.
+
+Verification completed:
+
+```text
+npm test          # 104 passed, 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+git diff --check
+```
+
+Live verification completed with the locally configured Zen credential:
+
+```text
+node dist/cli.js models --provider zen
+# succeeded; catalog included claude-haiku-4-5 and Claude/Qwen anthropic-messages routes
+
+node dist/cli.js --provider zen --model claude-haiku-4-5 "What is 2 + 2? Answer briefly."
+# 2 + 2 = 4
+
+node dist/cli.js --config examples/demo-mcp.config.json --provider zen --model claude-haiku-4-5 "Use demo.lookup_demo_record with key mcp and explain the result briefly."
+# successful lookup; correctly explained the MCP registry result
+```
+
+The Anthropic SDK sends this protocol's required `x-api-key` header. The centralized Zen transport now replaces its non-secret SDK placeholder with `OPENCODE_ZEN_API_KEY`, while also retaining the existing Zen Bearer Authorization header; the key is neither logged nor exposed to the adapter. An initial `--max-steps 1` smoke request reached the model and hit the expected step guard after a tool call. Do not begin Z7 until explicitly requested.
+
 ## Next phase
 
-Phase Z6 — Anthropic Messages adapter. Do not begin it until explicitly requested.
+Phase Z7 — Google/Gemini adapter. Do not begin it until explicitly requested.
