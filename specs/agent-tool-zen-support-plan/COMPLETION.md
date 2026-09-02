@@ -255,6 +255,50 @@ node dist/cli.js --config examples/demo-mcp.config.json --provider zen --model c
 
 The Anthropic SDK sends this protocol's required `x-api-key` header. The centralized Zen transport now replaces its non-secret SDK placeholder with `OPENCODE_ZEN_API_KEY`, while also retaining the existing Zen Bearer Authorization header; the key is neither logged nor exposed to the adapter. An initial `--max-steps 1` smoke request reached the model and hit the expected step guard after a tool call. Do not begin Z7 until explicitly requested.
 
+## Phase Z7 — Google/Gemini adapter
+
+**Status:** Complete.
+
+Delivered:
+
+- `../../src/model/zen/adapters/zen-google-generative.ts`, a narrow non-streaming Gemini adapter using `@ai-sdk/google` against Zen's model-specific `/models/<model-id>:generateContent` endpoint
+- a `google-generative` branch in `ZenProvider`, reusing the Z3 router, centralized Zen base URL, Bearer authentication, `x-goog-api-key` credential substitution, and existing safe/redacted transport errors
+- normalized mapping for system/user/assistant/tool messages, function declarations, ordered function calls and exact IDs, function responses, finish reasons, usage, and safe `provider/model/protocol` trace metadata
+- reversible Gemini-safe function names for namespaced MCP tools, including collision detection and restoration before the unchanged normalized tool registry executes calls
+- opaque Gemini thought-signature continuation metadata replayed only by the adapter; the agent loop neither inspects nor uses it for control flow
+- explicit direct dependency declaration for `@ai-sdk/google`
+- offline fetch-fixture tests for normal mapping, response/usage/trace mapping, multi-function calls, tool-result continuation and signatures, namespaced tools, reasoning behavior, error redaction, registry selection, and unknown-protocol handling
+
+Reasoning behavior:
+
+- provider-default remains unchanged
+- explicit disabled/enabled/effort requests fail clearly: Zen's plan documents the Gemini endpoint but no model-specific reasoning capability or accepted thinking configuration, so the adapter does not infer support from a model name
+
+Verification completed:
+
+```text
+npm test          # 111 passed, 1 opt-in stdio test skipped
+npm run typecheck
+npm run build
+git diff --check
+```
+
+Live manual verification completed with the locally configured Zen credential:
+
+```text
+node dist/cli.js models --provider zen
+# succeeded; catalog included gemini-3.5-flash-lite, gemini-3.5-flash,
+# gemini-3.6-flash, and gemini-3.7-flash as google-generative routes
+
+node dist/cli.js --provider zen --model gemini-3.5-flash-lite "What is 2 + 2? Answer briefly."
+# 4
+
+node dist/cli.js --config examples/demo-mcp.config.json --provider zen --model gemini-3.5-flash-lite "Use demo.lookup_demo_record with key mcp and explain the result briefly."
+# succeeded; reported the demo MCP record's normalized-registry summary
+```
+
+No streaming, automatic model selection, fallback, retries, persistent catalogs, eval expansion, Z8 capability work, or agent-loop changes were added. Do not begin Z8 until explicitly requested.
+
 ## Next phase
 
-Phase Z7 — Google/Gemini adapter. Do not begin it until explicitly requested.
+Phase Z8 — Capability + reasoning validation. Do not begin it until explicitly requested.

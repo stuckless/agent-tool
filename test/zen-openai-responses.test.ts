@@ -136,11 +136,11 @@ describe("Zen OpenAI Responses", () => {
 
   it("fails clearly for Zen protocols without an implemented adapter", async () => {
     const fetchMock = vi.fn();
-    const provider = new ZenProvider({ apiKey: "test-key", model: "gemini-test", fetch: fetchMock });
+    const provider = new ZenProvider({ apiKey: "test-key", model: "unrouted-test", fetch: fetchMock });
 
     await expect(provider.generate({ ...defaultRequest, messages: [], tools: [] })).rejects.toEqual(expect.objectContaining({
       name: "ZenProviderError",
-      message: expect.stringContaining("routed to google-generative"),
+      message: expect.stringContaining("routed to unknown"),
     }));
     expect(fetchMock).not.toHaveBeenCalled();
   });

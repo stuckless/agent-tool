@@ -7,6 +7,7 @@ import { resolveZenProtocol, type ZenModelRoutes } from "./zen-protocol-router.j
 import { ZenOpenAiChatAdapter } from "./adapters/zen-openai-chat.js";
 import { ZenOpenAiResponsesAdapter } from "./adapters/zen-openai-responses.js";
 import { ZenAnthropicMessagesAdapter } from "./adapters/zen-anthropic-messages.js";
+import { ZenGoogleGenerativeAdapter } from "./adapters/zen-google-generative.js";
 
 const defaultZenBaseUrl = "https://opencode.ai/zen/v1";
 
@@ -82,6 +83,13 @@ export class ZenProvider implements ModelProvider {
         fetch: (input, init) => this.fetchZen(input instanceof Request ? input.url : input.toString(), init ?? {}),
       }).generate(request);
     }
+    if (protocol === "google-generative") {
+      return new ZenGoogleGenerativeAdapter({
+        model: this.model,
+        baseUrl: this.baseUrl,
+        fetch: (input, init) => this.fetchZen(input instanceof Request ? input.url : input.toString(), init ?? {}),
+      }).generate(request);
+    }
     if (protocol !== "openai-chat") {
       const routedProtocol = protocol ?? "unknown";
       throw new ZenProviderError(`Zen model \"${this.model}\" is routed to ${routedProtocol}, but no adapter for that Zen protocol is implemented.`);
@@ -110,6 +118,8 @@ export class ZenProvider implements ModelProvider {
       // substitution at this shared Zen transport boundary, so adapters never
       // receive or trace the secret themselves.
       if ("x-api-key" in headers) headers["x-api-key"] = apiKey;
+      // Google Generative uses this SDK-required header for its API key.
+      if ("x-goog-api-key" in headers) headers["x-goog-api-key"] = apiKey;
       return await this.fetchImplementation(url.startsWith("http") ? url : `${this.baseUrl}${url}`, {
         ...init,
         headers,
